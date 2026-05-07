@@ -669,13 +669,15 @@ def _partial_fail_pat_results():
 @patch("repomatic.cli.check_branch_ruleset_on_default")
 @patch("repomatic.cli._token_mod.check_all_pat_permissions")
 @patch("repomatic.cli.check_pages_deployment_source")
+@patch("repomatic.cli.check_pypi_trusted_publisher")
 def test_setup_guide_all_checks_pass_closes_issue(
-    mock_pages, mock_check, mock_branch, mock_lifecycle, _mock_token
+    mock_pypi, mock_pages, mock_check, mock_branch, mock_lifecycle, _mock_token
 ):
     """When PAT, permissions, branch ruleset, and VT key all pass, the issue closes."""
     mock_check.return_value = _all_pass_pat_results()
     mock_branch.return_value = (True, "Active branch rulesets found: main.")
     mock_pages.return_value = (True, "Pages deployment source is GitHub Actions.")
+    mock_pypi.return_value = (True, "Trusted publisher is configured.")
     runner = CliRunner()
     result = runner.invoke(
         repomatic_cli,
@@ -808,18 +810,20 @@ def test_setup_guide_missing_vt_key_keeps_issue_open(
 @patch("repomatic.cli.manage_issue_lifecycle")
 @patch("repomatic.cli.check_branch_ruleset_on_default")
 @patch("repomatic.cli._token_mod.check_all_pat_permissions")
+@patch("repomatic.cli.check_pypi_trusted_publisher")
 def test_setup_guide_nuitka_disabled_hides_vt_step(
-    mock_check, mock_branch, mock_lifecycle, _mock_token, tmp_path, monkeypatch
+    mock_pypi, mock_check, mock_branch, mock_lifecycle, _mock_token, tmp_path, monkeypatch
 ):
     """When Nuitka is disabled, the VT step is omitted from the setup guide."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
         "[project]\nname = 'test'\nversion = '1.0'\n\n"
-        "[tool.repomatic]\nnuitka-enabled = false\n"
+        "[tool.repomatic.nuitka]\nenabled = false\n"
     )
     monkeypatch.chdir(tmp_path)
     mock_check.return_value = _all_pass_pat_results()
     mock_branch.return_value = (True, "Active branch rulesets found: main.")
+    mock_pypi.return_value = (True, "Trusted publisher is configured.")
     captured: list[str] = []
     mock_lifecycle.side_effect = lambda **kw: captured.append(
         kw["body_file"].read_text(encoding="UTF-8")

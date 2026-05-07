@@ -323,7 +323,8 @@ def get_trusted_publishers(
         logging.debug(f"PyPI provenance lookup failed for {package} {version}: {exc}")
         return None
 
-    bundles = data.get("attestation_bundles") or []
+    raw_bundles = data.get("attestation_bundles")
+    bundles = raw_bundles if isinstance(raw_bundles, list) else []
     publishers: list[TrustedPublisher] = []
     for bundle in bundles:
         if not isinstance(bundle, dict):

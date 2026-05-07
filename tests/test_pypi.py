@@ -19,8 +19,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
+from contextlib import AbstractContextManager
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from urllib.error import URLError
 
 import pytest
@@ -49,7 +51,7 @@ class _FakeResponse:
         pass
 
 
-def _patch_pypi_json(payload: dict) -> object:
+def _patch_pypi_json(payload: Mapping[str, object] | None) -> AbstractContextManager[MagicMock]:
     """Patch `_fetch_json` to return `payload`."""
     return patch("repomatic.pypi._fetch_json", return_value=payload)
 
