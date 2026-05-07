@@ -23,12 +23,15 @@ from io import BytesIO
 from unittest.mock import patch
 from urllib.error import URLError
 
+import pytest
 from typing_extensions import Self
 
 from repomatic.pypi import (
+    PYPI_TRUSTED_PUBLISHER_SETTINGS_URL,
     TrustedPublisher,
     get_latest_release_file,
     get_trusted_publishers,
+    pypi_trusted_publisher_settings_url,
 )
 
 
@@ -248,3 +251,61 @@ def test_get_trusted_publishers_skips_malformed_entries():
             environment="production",
         ),
     ]
+
+
+def test_settings_url_bare_without_prefill_args():
+    """No keyword args returns the bare settings URL."""
+    assert pypi_trusted_publisher_settings_url(
+        "cherries"
+    ) == PYPI_TRUSTED_PUBLISHER_SETTINGS_URL.format(package="cherries")
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "expected_query"),
+    [
+        ({"owner": "alice"}, "provider=github&owner=alice"),
+        (
+            {"owner": "alice", "repository": "cherries"},
+            "provider=github&owner=alice&repository=cherries",
+        ),
+        (
+            {
+                "owner": "alice",
+                "repository": "cherries",
+                "workflow_filename": "release.yaml",
+                "environment": "production",
+            },
+            "provider=github&owner=alice&repository=cherries"
+            "&workflow_filename=release.yaml&environment=production",
+        ),
+    ],
+)
+def test_settings_url_prefill_query(
+    kwargs: dict[str, str], expected_query: str
+) -> None:
+    """Provided GitHub fields produce a `?provider=github&…` prefill suffix."""
+    url = pypi_trusted_publisher_settings_url("cherries", **kwargs)
+    base = PYPI_TRUSTED_PUBLISHER_SETTINGS_URL.format(package="cherries")
+    assert url == f"{base}?{expected_query}"
+
+
+def test_settings_url_prefill_skips_blank_fields():
+    """Empty-string fields are dropped from the prefill query."""
+    url = pypi_trusted_publisher_settings_url(
+        "cherries",
+        owner="alice",
+        repository="",
+        workflow_filename="release.yaml",
+        environment=None,
+    )
+    base = PYPI_TRUSTED_PUBLISHER_SETTINGS_URL.format(package="cherries")
+    assert url == f"{base}?provider=github&owner=alice&workflow_filename=release.yaml"
+
+
+def test_settings_url_url_encodes_unsafe_characters():
+    """Special characters in field values are URL-encoded."""
+    url = pypi_trusted_publisher_settings_url(
+        "cherries", owner="alice & bob", environment="staging/edge"
+    )
+    assert "owner=alice+%26+bob" in url
+    assert "environment=staging%2Fedge" in url

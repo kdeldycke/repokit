@@ -136,7 +136,10 @@ from .metadata import (
     is_version_bump_allowed,
     metadata_keys_reference,
 )
-from .pypi import PYPI_TRUSTED_PUBLISHER_SETTINGS_URL
+from .pypi import (
+    PYPI_TRUSTED_PUBLISHER_WORKFLOW,
+    pypi_trusted_publisher_settings_url,
+)
 from .pyproject import get_project_name
 from .registry import (
     _BY_NAME,
@@ -2266,8 +2269,12 @@ def setup_guide(
                 package_name=package_name,
                 repo_owner=repo_owner,
                 repo_name=repo_name,
-                settings_url=PYPI_TRUSTED_PUBLISHER_SETTINGS_URL.format(
-                    package=package_name
+                workflow_filename=PYPI_TRUSTED_PUBLISHER_WORKFLOW,
+                settings_url=pypi_trusted_publisher_settings_url(
+                    package_name,
+                    owner=repo_owner,
+                    repository=repo_name,
+                    workflow_filename=PYPI_TRUSTED_PUBLISHER_WORKFLOW,
                 ),
             ),
             passed=pypi_publisher_ok or False,

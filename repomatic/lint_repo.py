@@ -32,20 +32,11 @@ from .github.actions import AnnotationLevel, emit_annotation
 from .github.gh import run_gh_command
 from .github.token import check_all_pat_permissions
 from .pypi import (
-    PYPI_TRUSTED_PUBLISHER_SETTINGS_URL,
+    PYPI_TRUSTED_PUBLISHER_WORKFLOW,
     get_latest_release_file,
     get_trusted_publishers,
+    pypi_trusted_publisher_settings_url,
 )
-
-PYPI_TRUSTED_PUBLISHER_WORKFLOW = "release.yaml"
-"""Workflow filename each downstream registers as the Trusted Publisher.
-
-The caller-side ``publish-pypi`` job is appended to ``release.yaml`` in every
-downstream repo (see ``repomatic/data/release-publish-pypi-job.yaml``), and the
-composite action it invokes inherits the calling job's OIDC context. The
-OIDC ``job_workflow_ref`` claim therefore names this file: that is what the
-PyPI Trusted Publisher entry must match.
-"""
 
 
 def get_repo_metadata(repo: str) -> dict[str, str | None]:
@@ -693,7 +684,13 @@ def check_pypi_trusted_publisher(
             )
 
     observed = ", ".join(f"{p.repository}:{p.workflow}" for p in publishers)
-    settings_url = PYPI_TRUSTED_PUBLISHER_SETTINGS_URL.format(package=package_name)
+    owner, _, repository = repo.partition("/")
+    settings_url = pypi_trusted_publisher_settings_url(
+        package_name,
+        owner=owner,
+        repository=repository,
+        workflow_filename=PYPI_TRUSTED_PUBLISHER_WORKFLOW,
+    )
     msg = (
         f"PyPI Trusted Publisher mismatch for '{package_name}' {version}."
         f" Expected {repo} via {PYPI_TRUSTED_PUBLISHER_WORKFLOW},"

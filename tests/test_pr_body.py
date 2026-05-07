@@ -220,7 +220,8 @@ def test_get_template_names():
     assert "setup-guide-virustotal" in names
     assert "yanked-admonition" in names
     assert "format-shell" in names
-    assert len(names) == 42
+    assert "setup-guide-pypi-trusted-publisher" in names
+    assert len(names) == 43
 
 
 def test_load_template_frontmatter():
@@ -563,6 +564,7 @@ PROGRAMMATIC_TEMPLATES = frozenset({
     "setup-guide-dependabot",
     "setup-guide-fork-pr-approval",
     "setup-guide-pages-source",
+    "setup-guide-pypi-trusted-publisher",
     "setup-guide-token",
     "setup-guide-verify",
     "setup-guide-virustotal",

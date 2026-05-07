@@ -26,6 +26,7 @@ import json
 import logging
 from typing import NamedTuple
 from urllib.error import URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .cache import get_cached_response, store_response
@@ -53,6 +54,56 @@ PYPI_TRUSTED_PUBLISHER_SETTINGS_URL = (
     "https://pypi.org/manage/project/{package}/settings/publishing/"
 )
 """Owner-only page where Trusted Publisher entries are registered."""
+
+PYPI_TRUSTED_PUBLISHER_WORKFLOW = "release.yaml"
+"""Workflow filename each downstream registers as the Trusted Publisher.
+
+The caller-side ``publish-pypi`` job is appended to ``release.yaml`` in every
+downstream repo (see ``repomatic/data/release-publish-pypi-job.yaml``), and the
+composite action it invokes inherits the calling job's OIDC context. The OIDC
+``job_workflow_ref`` claim therefore names this file: that is what the PyPI
+Trusted Publisher entry must match.
+"""
+
+
+def pypi_trusted_publisher_settings_url(
+    package: str,
+    *,
+    owner: str | None = None,
+    repository: str | None = None,
+    workflow_filename: str | None = None,
+    environment: str | None = None,
+) -> str:
+    """Build the PyPI Trusted Publisher settings page URL for a project.
+
+    Without keyword arguments, returns the bare settings URL. When any GitHub
+    publisher field is provided, appends the query string PyPI's settings page
+    consumes to activate the GitHub tab and pre-populate the form: see the
+    ``manage_project_oidc_publishers_prefill`` view in
+    [pypi/warehouse](https://github.com/pypi/warehouse/blob/main/warehouse/manage/views/oidc_publishers.py).
+
+    :param package: PyPI project name.
+    :param owner: GitHub owner (user or org) prefilled in the form.
+    :param repository: GitHub repository name prefilled in the form.
+    :param workflow_filename: Workflow filename prefilled in the form (e.g.,
+        :data:`PYPI_TRUSTED_PUBLISHER_WORKFLOW`).
+    :param environment: GitHub Actions environment name prefilled in the form.
+    :return: The settings URL, optionally with a ``?provider=github&…`` suffix.
+    """
+    base = PYPI_TRUSTED_PUBLISHER_SETTINGS_URL.format(package=package)
+    fields = {
+        "owner": owner,
+        "repository": repository,
+        "workflow_filename": workflow_filename,
+        "environment": environment,
+    }
+    prefill = {key: value for key, value in fields.items() if value}
+    if not prefill:
+        return base
+    # `provider=github` selects the GitHub tab and routes the remaining
+    # parameters to the GitHub publisher form.
+    query = urlencode({"provider": "github", **prefill})
+    return f"{base}?{query}"
 
 PYPI_LABEL = "🐍 PyPI"
 """Display label for PyPI releases in admonitions."""

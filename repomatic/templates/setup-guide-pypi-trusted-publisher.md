@@ -1,21 +1,21 @@
 ---
-args: [package_name, repo_owner, repo_name, settings_url]
+args: [package_name, repo_owner, repo_name, workflow_filename, settings_url]
 footer: 'false'
 ---
 
 Register a [**Trusted Publisher**]($settings_url) entry on PyPI so the `publish-pypi` job can upload releases via OIDC, with no long-lived API token.
 
-The publisher matches the OIDC `job_workflow_ref` claim, which names the **caller's** workflow file (`.github/workflows/release.yaml` in this repo). Without a matching entry, the first upload after migration fails with a publisher-mismatch error.
+The publisher matches the OIDC `job_workflow_ref` claim, which names the **caller's** workflow file (`.github/workflows/$workflow_filename` in this repo). Without a matching entry, the first upload after migration fails with a publisher-mismatch error.
 
-Open the [**Trusted Publishers settings page**]($settings_url) and add a **GitHub** publisher with these values:
+Open the [**pre-filled Trusted Publishers settings page**]($settings_url): the GitHub tab is already selected and every required field is populated. Review the values and click **Add**:
 
-| Field                 | Value           |
-| :-------------------- | :-------------- |
-| **PyPI Project Name** | `$package_name` |
-| **Owner**             | `$repo_owner`   |
-| **Repository name**   | `$repo_name`    |
-| **Workflow name**     | `release.yaml`  |
-| **Environment name**  | *(leave blank)* |
+| Field                 | Value                |
+| :-------------------- | :------------------- |
+| **PyPI Project Name** | `$package_name`      |
+| **Owner**             | `$repo_owner`        |
+| **Repository name**   | `$repo_name`         |
+| **Workflow name**     | `$workflow_filename` |
+| **Environment name**  | *(leave blank)*      |
 
 > [!NOTE]
 > The workflow name must be `release.yaml`, not the upstream reusable workflow path. The composite action invoked from `release.yaml` inherits the caller's OIDC context, so the claim resolves to this repo's own file. Registering the upstream path triggers [pypi/warehouse#11096](https://github.com/pypi/warehouse/issues/11096) on first publish.
