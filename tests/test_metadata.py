@@ -492,6 +492,7 @@ expected: dict[str, Any] = {
     "json_files": [],
     "yaml_files": [
         ".github/ISSUE_TEMPLATE/bug-report.yml",
+        ".github/actions/publish-pypi/action.yaml",
         ".github/codecov.yaml",
         ".github/funding.yml",
         ".github/workflows/autofix.yaml",
@@ -513,6 +514,7 @@ expected: dict[str, Any] = {
         "repomatic/data/codecov.yaml",
         "repomatic/data/labeller-content-based.yaml",
         "repomatic/data/labeller-file-based.yaml",
+        "repomatic/data/release-publish-pypi-job.yaml",
         "repomatic/data/yamllint.yaml",
         "repomatic/data/zizmor.yaml",
         "tests/cli-test-plan.yaml",
