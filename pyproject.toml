@@ -190,7 +190,7 @@ exclude-newer = "1 week"
 # extra-platforms 12.0.0 fixes is_macos() shelling out on Windows
 # (https://github.com/kdeldycke/extra-platforms): bypass the cooldown so the
 # fix lands without waiting a week.
-exclude-newer-package = { gitpython = "0 day", repomatic = "0 day", extra-platforms = "0 day" }
+exclude-newer-package = { repomatic = "0 day" }
 # Package is at root level, not in "./src/".
 build-backend.module-root = ""
 
