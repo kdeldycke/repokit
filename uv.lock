@@ -11,8 +11,6 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P1W"
 
 [options.exclude-newer-package]
-extra-platforms = { timestamp = "0001-01-01T00:00:00Z", span = "PT0S" }
-gitpython = { timestamp = "0001-01-01T00:00:00Z", span = "PT0S" }
 repomatic = { timestamp = "0001-01-01T00:00:00Z", span = "PT0S" }
 
 [[package]]
