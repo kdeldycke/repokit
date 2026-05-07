@@ -812,7 +812,13 @@ def test_setup_guide_missing_vt_key_keeps_issue_open(
 @patch("repomatic.cli._token_mod.check_all_pat_permissions")
 @patch("repomatic.cli.check_pypi_trusted_publisher")
 def test_setup_guide_nuitka_disabled_hides_vt_step(
-    mock_pypi, mock_check, mock_branch, mock_lifecycle, _mock_token, tmp_path, monkeypatch
+    mock_pypi,
+    mock_check,
+    mock_branch,
+    mock_lifecycle,
+    _mock_token,
+    tmp_path,
+    monkeypatch,
 ):
     """When Nuitka is disabled, the VT step is omitted from the setup guide."""
     pyproject = tmp_path / "pyproject.toml"

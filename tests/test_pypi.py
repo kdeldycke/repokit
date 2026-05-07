@@ -51,7 +51,9 @@ class _FakeResponse:
         pass
 
 
-def _patch_pypi_json(payload: Mapping[str, object] | None) -> AbstractContextManager[MagicMock]:
+def _patch_pypi_json(
+    payload: Mapping[str, object] | None,
+) -> AbstractContextManager[MagicMock]:
     """Patch `_fetch_json` to return `payload`."""
     return patch("repomatic.pypi._fetch_json", return_value=payload)
 
