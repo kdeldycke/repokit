@@ -105,6 +105,7 @@ def pypi_trusted_publisher_settings_url(
     query = urlencode({"provider": "github", **prefill})
     return f"{base}?{query}"
 
+
 PYPI_LABEL = "🐍 PyPI"
 """Display label for PyPI releases in admonitions."""
 
