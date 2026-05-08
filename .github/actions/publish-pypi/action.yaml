@@ -1,8 +1,9 @@
 ---
 name: Publish to PyPI via Trusted Publishing
 description: >
-  Download a build artifact, verify its provenance attestations, and upload to
-  PyPI using OIDC-based Trusted Publishing (no long-lived API token).
+  Download the build artifact (which carries its own PEP 740 attestation
+  sidecars, generated at build time) and upload everything to PyPI using
+  OIDC-based Trusted Publishing (no long-lived API token).
 
 # This composite action is a workaround for pypi/warehouse#11096: PyPI's
 # Trusted Publisher config matches the OIDC `job_workflow_ref` claim against
@@ -16,12 +17,6 @@ inputs:
   artifact-name:
     description: Name of the dist artifact uploaded by the upstream build job.
     required: true
-  attestation-signer-repo:
-    description: >
-      Repository that signed the build attestations, passed to
-      `gh attestation verify --signer-repo`.
-    required: false
-    default: kdeldycke/repomatic
   repository-url:
     description: >
       Optional override for the PyPI repository URL (e.g., TestPyPI). Leave
@@ -42,20 +37,6 @@ runs:
       with:
         name: ${{ inputs.artifact-name }}
         path: dist/
-
-    - name: Verify build attestations
-      env:
-        GH_TOKEN: ${{ github.token }}
-        DOWNLOAD_PATH: ${{ steps.download.outputs.download-path }}
-        SIGNER_REPO: ${{ inputs.attestation-signer-repo }}
-      shell: bash
-      run: |
-        for f in "${DOWNLOAD_PATH}"/*; do
-          echo "Verifying: ${f}"
-          gh attestation verify "${f}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --signer-repo "${SIGNER_REPO}"
-        done
 
     - name: Push to PyPI
       env:

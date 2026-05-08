@@ -5,6 +5,8 @@
 > [!WARNING]
 > This version is **not released yet** and is under active development.
 
+- Fix `release.yaml` uploading distributions to PyPI without PEP 740 attestations. The build job now signs each dist file with `pypi-attestations sign` (using the job's OIDC token via Sigstore), writing `<dist>.publish.attestation` sidecars directly into `./dist/` so the dist artifact carries its own attestations. The `publish-pypi` composite action shrinks to setup-uv → download artifact → `uv publish dist/*`. Replaces the previous `actions/attest` + GitHub-attestation-API flow for Python distributions: the Nuitka binary attestation flow is unchanged, and PyPI's PEP 740 provenance is now populated so the `setup-guide` `check_pypi_trusted_publisher` probe can confirm the trusted publisher is wired up. Removes the `attestation-signer-repo` input from the composite action and the separate `attestation-<artifact-name>` artifact: dist files and their `.publish.attestation` sidecars travel together in a single artifact and end up alongside each other on the GitHub release page.
+
 ## [`6.18.1` (2026-05-08)](https://github.com/kdeldycke/repomatic/compare/v6.18.0...v6.18.1)
 
 - Fix `publish-pypi` composite action attempting to verify build attestations on every file in the workflow workspace (including `changelog.md`, `pyproject.toml`, etc.) instead of just the downloaded distribution artifacts. The `actions/download-artifact` step now downloads to `dist/` so the verification loop and `uv publish` only target the actual artifact files.

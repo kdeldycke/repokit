@@ -139,7 +139,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       id-token: write
-      attestations: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -154,35 +153,16 @@ jobs:
           prebake field git_tag_sha "${COMMIT}"
       - name: Build package
         run: uv --no-progress build
-      - name: Generate build attestations
-        id: attest-build
-        # OIDC tokens are not available for fork PRs, skip attestation.
+      # Signs each dist file with the job's OIDC token via Sigstore and writes
+      # `<dist>.publish.attestation` sidecars (PEP 740 format) directly into
+      # ./dist/ so the artifact uploaded below carries its own attestations.
+      # Skipped on fork PRs where the OIDC token is unavailable.
+      - name: Sign distributions with PEP 740 attestations
         if: >-
           github.event_name != 'pull_request'
           || !github.event.pull_request.head.repo.fork
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
-        with:
-          subject-path: ./dist/*
-      - name: Verify build attestations
-        if: >-
-          github.event_name != 'pull_request'
-          || !github.event.pull_request.head.repo.fork
-        env:
-          GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: |
-          for f in ./dist/*; do
-            echo "Verifying: ${f}"
-            gh attestation verify "${f}" \
-              --repo "${{ github.repository }}" \
-              --signer-repo kdeldycke/repomatic
-          done
-      - name: Upload attestation bundle
-        if: steps.attest-build.outputs.bundle-path
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: attestation-${{ github.event.repository.name }}-${{ matrix.short_sha }}
-          path: ${{ steps.attest-build.outputs.bundle-path }}
+        run: uvx --no-progress pypi-attestations sign ./dist/*.whl ./dist/*.tar.gz
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -438,13 +418,6 @@ jobs:
         with:
           path: release_artifact
           name: ${{ github.event.repository.name }}-${{ matrix.short_sha }}
-      - name: Download attestation bundle
-        if: needs.build-package.result != 'skipped'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        id: attestation-bundle
-        with:
-          name: attestation-${{ github.event.repository.name }}-${{ matrix.short_sha }}
-          path: ./attestation-bundle
       - name: Delete dev pre-release
         # Clean up all rolling dev releases before creating the real release.
         # See repomatic/github/dev_release.py for rationale.
@@ -474,20 +447,6 @@ jobs:
               --repo "${REPO}" \
               --notes-file - \
               "${files[@]}" <<< "${RELEASE_NOTES}"
-          fi
-      - name: Upload attestation bundle to GitHub release draft
-        if: steps.attestation-bundle.outputs.download-path
-        env:
-          GH_TOKEN: ${{ secrets.REPOMATIC_PAT || github.token }}
-          CURRENT_VERSION: ${{ matrix.current_version }}
-        shell: bash
-        run: |
-          shopt -s nullglob
-          files=(./attestation-bundle/*)
-          if [[ ${#files[@]} -gt 0 ]]; then
-            gh release upload "v${CURRENT_VERSION}" \
-              "${files[@]}" \
-              --repo "${{ github.repository }}"
           fi
 
   publish-release:

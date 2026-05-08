@@ -573,17 +573,27 @@ def test_workflow_symlinks_resolve_correctly() -> None:
 
 
 def test_action_symlinks_resolve_correctly() -> None:
-    """Verify that composite-action symlinks in repomatic/data/ resolve correctly."""
-    for symlink in sorted(DATA_DIR.iterdir()):
-        if not symlink.is_symlink() or not symlink.name.startswith("action-"):
-            continue
-        # action-publish-pypi.yaml -> .github/actions/publish-pypi/action.yaml.
-        action_name = symlink.name.removeprefix("action-").removesuffix(".yaml")
-        expected = (ACTIONS_DIR / action_name / "action.yaml").resolve()
-        target = symlink.resolve()
-        assert target == expected, (
-            f"Symlink {symlink.name} points to {target}, expected {expected}"
-        )
+    """Verify that composite-action symlinks in repomatic/data/ resolve correctly.
+
+    Uses the registry as the source of truth: every `FileEntry` whose target
+    sits under `.github/actions/` must be backed by a symlink at the declared
+    `source` path that resolves to the declared target file.
+    """
+    from repomatic.registry import COMPONENTS
+
+    for component in COMPONENTS:
+        for entry in component.files:
+            if not entry.target.startswith(".github/actions/"):
+                continue
+            symlink = DATA_DIR / entry.source
+            assert symlink.is_symlink(), (
+                f"{symlink} should be a symlink to {entry.target}"
+            )
+            expected = (REPO_ROOT / entry.target).resolve()
+            target = symlink.resolve()
+            assert target == expected, (
+                f"Symlink {symlink.name} points to {target}, expected {expected}"
+            )
 
 
 def test_skill_symlinks_resolve_correctly() -> None:
