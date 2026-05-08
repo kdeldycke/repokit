@@ -1,5 +1,10 @@
 # Changelog
 
+## [`6.18.2.dev0` (unreleased)](https://github.com/kdeldycke/repomatic/compare/v6.18.1...main)
+
+> [!WARNING]
+> This version is **not released yet** and is under active development.
+
 ## [`6.18.1` (2026-05-08)](https://github.com/kdeldycke/repomatic/compare/v6.18.0...v6.18.1)
 
 - Fix `publish-pypi` composite action attempting to verify build attestations on every file in the workflow workspace (including `changelog.md`, `pyproject.toml`, etc.) instead of just the downloaded distribution artifacts. The `actions/download-artifact` step now downloads to `dist/` so the verification loop and `uv publish` only target the actual artifact files.
