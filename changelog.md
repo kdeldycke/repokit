@@ -5,6 +5,8 @@
 > [!WARNING]
 > This version is **not released yet** and is under active development.
 
+- Fix `publish-pypi` composite action attempting to verify build attestations on every file in the workflow workspace (including `changelog.md`, `pyproject.toml`, etc.) instead of just the downloaded distribution artifacts. The `actions/download-artifact` step now downloads to `dist/` so the verification loop and `uv publish` only target the actual artifact files.
+
 ## [`6.18.0` (2026-05-07)](https://github.com/kdeldycke/repomatic/compare/v6.17.0...v6.18.0)
 
 - **Breaking**: drop `PYPI_TOKEN` from the `release.yaml` `workflow_call.secrets:` interface. Downstream repos must regenerate their thin-caller workflow with `repomatic init workflows` and register a [PyPI Trusted Publisher](https://docs.pypi.org/trusted-publishers/adding-a-publisher/) for their own `release.yaml`. This re-enables OIDC-based PyPI publishing previously reverted in [#528](https://github.com/kdeldycke/repomatic/issues/528), this time via a composite action that sidesteps the reusable-workflow `job_workflow_ref` mismatch ([pypi/warehouse#11096](https://github.com/pypi/warehouse/issues/11096)).
