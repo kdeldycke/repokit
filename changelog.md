@@ -9,6 +9,12 @@
 
 ## [`6.18.0` (2026-05-07)](https://github.com/kdeldycke/repomatic/compare/v6.17.0...v6.18.0)
 
+> [!NOTE]
+> `6.18.0` is available on [🐙 GitHub](https://github.com/kdeldycke/repomatic/releases/tag/v6.18.0).
+
+> [!WARNING]
+> `6.18.0` is **not available** on 🐍 PyPI.
+
 - **Breaking**: drop `PYPI_TOKEN` from the `release.yaml` `workflow_call.secrets:` interface. Downstream repos must regenerate their thin-caller workflow with `repomatic init workflows` and register a [PyPI Trusted Publisher](https://docs.pypi.org/trusted-publishers/adding-a-publisher/) for their own `release.yaml`. This re-enables OIDC-based PyPI publishing previously reverted in [#528](https://github.com/kdeldycke/repomatic/issues/528), this time via a composite action that sidesteps the reusable-workflow `job_workflow_ref` mismatch ([pypi/warehouse#11096](https://github.com/pypi/warehouse/issues/11096)).
 - Add `check_pypi_trusted_publisher` to `lint-repo` and a new `setup-guide-pypi-trusted-publisher` step. The probe reads PEP 740 provenance from the public PyPI integrity API for the latest released file, asserts that a publisher bundle names the downstream's own repo and `release.yaml` workflow, and surfaces a pre-filled link to the project's PyPI publishing settings when the entry is missing or mismatched. The `setup-guide` issue stays open until the first OIDC-attested upload is observed.
 - Add the [`publish-pypi`](https://github.com/kdeldycke/repomatic/blob/main/.github/actions/publish-pypi/action.yaml) composite action wrapping `uv publish --trusted-publishing automatic` with build-attestation verification. Each downstream thin-caller now contains a generated `publish-pypi` job that invokes this action with `permissions: id-token: write`, inheriting the caller's OIDC context.
