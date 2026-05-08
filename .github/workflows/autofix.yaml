@@ -22,8 +22,12 @@ jobs:
 
   setup-guide:
     name: 📖 Setup guide
-    # Only run on push to the default branch, not on workflow_call from downstream.
-    if: github.event_name == 'push'
+    # Run on push to the default branch and on manual workflow_dispatch
+    # re-runs. Not gated against workflow_call invocations from downstream
+    # callers: when called that way the job runs in the caller's repo
+    # context (via GITHUB_REPOSITORY) and manages the caller's own
+    # setup-guide issue.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-slim
     permissions:
       issues: write
