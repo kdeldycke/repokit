@@ -5,6 +5,9 @@
 > [!WARNING]
 > This version is **not released yet** and is under active development.
 
+- Extend `release_prep.freeze_workflow_urls` and `unfreeze_workflow_urls` to walk non-symlink YAML files under `repomatic/data/` in addition to `.github/workflows/`. The bundled `release-publish-pypi-job.yaml` fragment now participates in the `@main` ↔ `@vX.Y.Z` rewrite, so wheels built from a freeze commit ship with the pinned action ref baked in. Symlinks in the data dir are skipped to avoid double-processing files already covered by the workflow glob.
+- Tie `repomatic.github.workflow_sync._PUBLISH_PYPI_DEFAULT_ACTION_REF` to `DEFAULT_VERSION` so the `.replace()` search string tracks whatever ref is actually in the (possibly frozen) bundled fragment.
+
 ## [`6.18.3` (2026-05-11)](https://github.com/kdeldycke/repomatic/compare/v6.18.2...v6.18.3)
 
 - Fix `autofix.yaml` `setup-guide` job being skipped on `workflow_dispatch` re-runs. The `if:` condition now allows both `push` and `workflow_dispatch` events instead of `push` only, so manual re-runs from the Actions UI re-evaluate the setup guide and update the issue accordingly.

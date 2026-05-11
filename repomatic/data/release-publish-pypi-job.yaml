@@ -5,12 +5,18 @@
 # downstream's own workflow file: that path is what each downstream registers
 # with PyPI as a Trusted Publisher. See pypi/warehouse#11096 for context.
 #
-# The action ref below is a real, working default (upstream repo at `@main`).
-# `repomatic.github.workflow_sync._render_publish_pypi_job` rewrites it to
-# the requested {repo, version, sha} via the same `.replace()`-based
+# The action ref below is a real, working default (upstream repo at the
+# default branch). `repomatic.github.workflow_sync._render_publish_pypi_job`
+# rewrites it to the requested {repo, version, sha} via the same `.replace()`
 # convention `repomatic.release_prep` uses on workflow files at freeze time.
 # No bespoke templating syntax is involved: the fragment is plain YAML with
 # real values, copy-pasteable into any workflow.
+#
+# This file is itself walked by `repomatic.release_prep.freeze_workflow_urls`
+# (and its unfreeze counterpart), so wheels built from a freeze commit ship
+# with the action ref pinned to the release tag baked in: downstream
+# `repomatic init` runs from a published wheel default to that pinned ref
+# without any extra rewriting.
 publish-pypi:
   name: 🐍 Publish to PyPI (${{ matrix.short_sha }})
   needs: release

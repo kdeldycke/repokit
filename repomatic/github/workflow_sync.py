@@ -609,7 +609,7 @@ treatment as tool-runner default configs).
 """
 
 _PUBLISH_PYPI_DEFAULT_ACTION_REF: Final[str] = (
-    f"{DEFAULT_REPO}/.github/actions/publish-pypi@main"
+    f"{DEFAULT_REPO}/.github/actions/publish-pypi@{DEFAULT_VERSION}"
 )
 """Literal default action ref carried inside the bundled fragment.
 
@@ -618,6 +618,11 @@ snippet. The generator below rewrites it to the requested
 {repo, version, sha} on the way out via plain `.replace()`, mirroring the
 convention used by :mod:`repomatic.release_prep` to rewrite action refs in
 workflow files at freeze time.
+
+Tied to :data:`DEFAULT_VERSION` so the search string tracks what is actually
+in the bundled fragment: ``@main`` during development, ``@vX.Y.Z`` in wheels
+built from a freeze commit (where :mod:`repomatic.release_prep` rewrites the
+fragment in lockstep with the rest of the workflow tree).
 """
 
 

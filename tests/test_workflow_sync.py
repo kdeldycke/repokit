@@ -27,6 +27,7 @@ import yaml
 from repomatic.config import Config, WorkflowConfig
 from repomatic.github.actions import AnnotationLevel
 from repomatic.github.workflow_sync import (
+    _PUBLISH_PYPI_DEFAULT_ACTION_REF,
     LintResult,
     PathsSpec,
     WorkflowFormat,
@@ -320,15 +321,20 @@ def test_release_thin_caller_loads_fragment_from_data() -> None:
     string literals. The fragment carries a real working default action ref
     that the generator rewrites via `.replace()` (same convention as
     `release_prep.freeze_workflow_urls`): no bespoke templating syntax.
+
+    The ref carried in the fragment must match
+    :data:`_PUBLISH_PYPI_DEFAULT_ACTION_REF`: that constant is the search
+    string the generator hands to `.replace()`, and
+    :mod:`repomatic.release_prep` rewrites both sides in lockstep at freeze
+    time (default branch during development, tag in wheels built from a
+    freeze commit).
     """
     fragment = get_data_content("release-publish-pypi-job.yaml")
     parsed = yaml.safe_load(fragment)
     assert "publish-pypi" in parsed
     job = parsed["publish-pypi"]
     assert job["permissions"]["id-token"] == "write"
-    # The fragment ships with the upstream's own working ref so it parses as
-    # a real, copy-pasteable workflow snippet.
-    assert f"{DEFAULT_REPO}/.github/actions/publish-pypi@main" in fragment
+    assert _PUBLISH_PYPI_DEFAULT_ACTION_REF in fragment
 
 
 def test_renovate_passes_secrets_explicitly() -> None:
