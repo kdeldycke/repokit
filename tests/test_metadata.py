@@ -913,13 +913,15 @@ expected: dict[str, Any] = {
                 "cli_id": "repomatic",
                 "module_id": "repomatic.__main__",
                 "callable_id": "main",
-                "main_entry_point": "repomatic=repomatic.__main__:main",
+                "module_path": regex(r"repomatic(/|\\)?"),
             },
-            # Nuitka extra args from [tool.repomatic] config.
+            # Nuitka extra args from [tool.repomatic] config plus
+            # auto-detected --python-flag=-m for __main__.py packages.
             {
                 "nuitka_extra_args": (
                     "--include-data-dir=repomatic/data/awesome_template=repomatic/data/awesome_template"
                     " --include-data-files=repomatic/templates/*.md=repomatic/templates/"
+                    " --python-flag=-m"
                 ),
             },
             # State (fixed).
