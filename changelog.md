@@ -6,6 +6,7 @@
 > This version is **not released yet** and is under active development.
 
 - Fix `autofix.yaml` `setup-guide` job being skipped on `workflow_dispatch` re-runs. The `if:` condition now allows both `push` and `workflow_dispatch` events instead of `push` only, so manual re-runs from the Actions UI re-evaluate the setup guide and update the issue accordingly.
+- Fix `release.yaml` `publish-pypi` job running against downstream callers and failing PyPI trusted publishing with a `job_workflow_ref` mismatch. The gate now uses `github.repository == 'kdeldycke/repomatic'` (which reflects the caller's repo under `workflow_call`) instead of `github.event_name == 'push'` (which stays `push` in both self-release and downstream contexts), so the upstream-only job is properly skipped when invoked from a downstream caller. Downstream repos publish through their own thin-caller `publish-pypi` job, which inherits the correct OIDC context.
 
 ## [`6.18.2` (2026-05-08)](https://github.com/kdeldycke/repomatic/compare/v6.18.1...v6.18.2)
 

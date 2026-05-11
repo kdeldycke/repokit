@@ -372,8 +372,12 @@ jobs:
     # workflow always claims this file. Downstream callers run their own
     # publish-pypi job using the .github/actions/publish-pypi composite
     # action, which inherits the caller's OIDC context. See pypi/warehouse#11096.
+    # `github.repository` reflects the caller's repo under `workflow_call`,
+    # so this is the correct context to distinguish self-release from
+    # downstream invocations. `github.event_name` is not: it stays `push`
+    # in both contexts (the caller's triggering event passes through).
     if: >-
-      github.event_name == 'push'
+      github.repository == 'kdeldycke/repomatic'
       && fromJSON(needs.metadata.outputs.metadata).package_name
       && fromJSON(needs.metadata.outputs.metadata).release_commits_matrix
     strategy:
