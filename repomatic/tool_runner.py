@@ -841,19 +841,19 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
                 (
                     LINUX,
                     AARCH64,
-                ): "55c1af98a86120c8a895323cf38ad4bef59139ed90288636e39c8265181e39ec",
+                ): "91a7bd65685da41b90ccb9bc867a3d649a7818042dae04ff405e55a25bddee4c",
                 (
                     LINUX,
                     X86_64,
-                ): "3ecad9a6e5ec42efaa9cdbdbad2406fdeef11ee38f7774aaf038f981d3248684",
+                ): "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a",
                 (
                     MACOS,
                     AARCH64,
-                ): "7485ac758fcaf9f8bd660a2d585a1baba9c2a0d48055fd3259e9284ed659a815",
+                ): "c9d3740ea2d891854d37116c9fba840f37b6e7c89d330e7db84ac333631c4977",
                 (
                     WINDOWS,
                     X86_64,
-                ): "34a12a7da946e4db1babe8cb3f7549e036129d524b36f2baf3068acdef66d0c3",
+                ): "32975d1493ee1a975d6bb41e4fb56fe419cb442ded628bb772ba2e614acfacad",
             },
             archive_format={
                 ALL_PLATFORMS: ArchiveFormat.TAR_GZ,
