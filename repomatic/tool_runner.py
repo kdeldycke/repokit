@@ -807,7 +807,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     "lychee": ToolSpec(
         name="lychee",
         display_name="Lychee",
-        version="0.24.1",
+        version="0.24.2",
         source_url="https://github.com/lycheeverse/lychee",
         config_docs_url="https://lychee.cli.rs/guides/config/",
         cli_docs_url="https://lychee.cli.rs/guides/cli/",
