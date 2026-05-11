@@ -218,7 +218,8 @@ jobs:
             --mode=onefile --assume-yes-for-downloads \
             ${NUITKA_EXTRA_ARGS} \
             --main-entry-point="${MAIN_ENTRY_POINT}" \
-            --output-filename="${BIN_NAME}"
+            --output-filename="${BIN_NAME}" \
+            --output-folder-name="${BIN_NAME}"
       - name: Upload Nuitka crash report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
