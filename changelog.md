@@ -1,5 +1,10 @@
 # Changelog
 
+## [`6.18.4.dev0` (unreleased)](https://github.com/kdeldycke/repomatic/compare/v6.18.3...main)
+
+> [!WARNING]
+> This version is **not released yet** and is under active development.
+
 ## [`6.18.3` (2026-05-11)](https://github.com/kdeldycke/repomatic/compare/v6.18.2...v6.18.3)
 
 - Fix `autofix.yaml` `setup-guide` job being skipped on `workflow_dispatch` re-runs. The `if:` condition now allows both `push` and `workflow_dispatch` events instead of `push` only, so manual re-runs from the Actions UI re-evaluate the setup guide and update the issue accordingly.
