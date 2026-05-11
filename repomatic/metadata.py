@@ -189,7 +189,7 @@ nuitka_matrix={
             "cli_id": "mpm",
             "module_id": "meta_package_manager.__main__",
             "callable_id": "main",
-            "module_path": "meta_package_manager"
+            "main_entry_point": "mpm=meta_package_manager.__main__:main"
         },
         {
             "commit": "346ce664f055fbd042a25ee0b7e96702e95",
@@ -1896,7 +1896,7 @@ class Metadata:
                     "cli_id": "mpm",
                     "module_id": "meta_package_manager.__main__",
                     "callable_id": "main",
-                    "module_path": "meta_package_manager",
+                    "main_entry_point": "mpm=meta_package_manager.__main__:main",
                 },
                 {
                     "commit": "346ce664f055fbd042a25ee0b7e96702e95",
@@ -2009,7 +2009,7 @@ class Metadata:
         for target_data in FLAT_BUILD_TARGETS:
             matrix.add_includes(target_data)
 
-        # Collect extra Nuitka flags from config, plus any auto-detected ones.
+        # Collect extra Nuitka flags from config.
         nuitka_extra_args_list = list(self.config.nuitka_extra_args)
 
         # Filter entry points to those selected for Nuitka compilation.
@@ -2019,29 +2019,12 @@ class Metadata:
                 continue
             # CLI ID is supposed to be unique, we'll use that as a key.
             matrix.add_variation("entry_point", [cli_id])
-            # Derive CLI module path from its ID.
-            # XXX We consider here the module is directly callable, because Nuitka
-            # doesn't seems to support the entry-point notation.
-            module_path = Path(f"{module_id.replace('.', '/')}.py")
-            assert module_path.exists()
-
-            # When the entry point is a `__main__.py` inside a package,
-            # Nuitka expects the package directory (not the file) along
-            # with `--python-flag=-m`.  Passing the file directly
-            # produces a binary that silently exits without output.
-            if module_path.name == "__main__.py":
-                package_dir = module_path.parent
-                init_file = package_dir / "__init__.py"
-                if init_file.exists():
-                    module_path = package_dir
-                    nuitka_extra_args_list.append("--python-flag=-m")
-
             matrix.add_includes({
                 "entry_point": cli_id,
                 "cli_id": cli_id,
                 "module_id": module_id,
                 "callable_id": callable_id,
-                "module_path": str(module_path),
+                "main_entry_point": f"{cli_id}={module_id}:{callable_id}",
             })
 
         # For releases, only build binaries for the release (freeze) commits. The

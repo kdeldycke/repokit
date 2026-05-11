@@ -210,14 +210,15 @@ jobs:
         env:
           NUITKA_EXTRA_ARGS: ${{ matrix.nuitka_extra_args }}
           BIN_NAME: ${{ matrix.bin_name }}
-          MODULE_PATH: ${{ matrix.module_path }}
+          MAIN_ENTRY_POINT: ${{ matrix.main_entry_point }}
         shell: bash
         run: |
           # shellcheck disable=SC2086
           uv --no-progress run --frozen -- nuitka \
-            --onefile --assume-yes-for-downloads \
+            --mode=onefile --assume-yes-for-downloads \
             ${NUITKA_EXTRA_ARGS} \
-            --output-filename="${BIN_NAME}" "${MODULE_PATH}"
+            --main-entry-point="${MAIN_ENTRY_POINT}" \
+            --output-filename="${BIN_NAME}"
       - name: Upload Nuitka crash report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
