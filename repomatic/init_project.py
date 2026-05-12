@@ -53,7 +53,7 @@ import tomlkit
 
 from . import __version__
 from .config import Config, load_repomatic_config
-from .pyproject import resolve_source_paths
+from .pyproject import is_python_project, resolve_source_paths
 from .registry import (
     _BY_NAME,
     COMPONENTS,
@@ -480,12 +480,12 @@ def run_init(
     auto-included when no explicit component selection is made.
 
     ```{note}
-    Scope exclusions (`RepoScope.NON_AWESOME`, `AWESOME_ONLY`) and
+    Scope exclusions (`RepoScope.AWESOME_ONLY`, `PYTHON_ONLY`) and
     user-config exclusions (`[tool.repomatic] exclude`) only apply
     during bare `repomatic init`. When components are explicitly named
     on the CLI, scope is bypassed: the caller knows what they asked for.
     This allows workflows to materialize out-of-scope configs at runtime
-    (e.g., `repomatic init renovate` in an awesome repo).
+    (like `repomatic init publish-pypi-action` in a non-Python repo).
     ```
 
     :param output_dir: Root directory of the target repository.
@@ -528,11 +528,12 @@ def run_init(
         from .metadata import Metadata
 
         repo_slug = Metadata().repo_slug
-    is_awesome_repo = bool(
+    is_awesome = bool(
         repo_slug and repo_slug.split("/")[-1].startswith("awesome-")
     )
-    logging.debug("Repository type: %s", "awesome" if is_awesome_repo else "standard")
-    if is_awesome_repo and not components:
+    is_python = is_python_project(output_dir)
+    logging.debug("Repository traits: awesome=%s python=%s", is_awesome, is_python)
+    if is_awesome and not components:
         selected.add("awesome-template")
 
     # Load config for source path resolution and exclusion rules.
@@ -600,7 +601,7 @@ def run_init(
     #    Bypassed by explicit CLI naming or `[tool.repomatic] include`.
     #    Scope exclusions on `selected` apply in all repos including the
     #    source repo (an AWESOME_ONLY config should not be merged into the
-    #    non-awesome source repo's `pyproject.toml`). Stale-file detection
+    #    Python source repo's `pyproject.toml`). Stale-file detection
     #    is suppressed in the source repo so bundled data files are never
     #    flagged for deletion.
     #
@@ -612,7 +613,6 @@ def run_init(
     #    Already applied above, before this loop.
     is_source = _is_source_repo(output_dir)
     scope_excluded_targets: list[str] = []
-    repo_label = "awesome" if is_awesome_repo else "standard"
 
     for reg_comp in COMPONENTS:
         # In the source repo, clear any user-config exclusions for bundled
@@ -624,12 +624,14 @@ def run_init(
         scope_bypassed = bool(components) or reg_comp.name in include_full
 
         # --- Component-level scope ---
-        if not reg_comp.scope.matches(is_awesome_repo):
+        if not reg_comp.scope.matches(is_awesome, is_python):
             logging.debug(
-                "Scope exclusion: %s (%s) not applicable to %s repo.",
+                "Scope exclusion: %s (%s) not applicable to repo "
+                "(awesome=%s, python=%s).",
                 reg_comp.name,
                 reg_comp.scope.name,
-                repo_label,
+                is_awesome,
+                is_python,
             )
             if not scope_bypassed and reg_comp.name not in include_files:
                 selected.discard(reg_comp.name)
@@ -652,13 +654,15 @@ def run_init(
 
         # --- File-level scope and config_key ---
         for entry in reg_comp.files:
-            if not entry.scope.matches(is_awesome_repo):
+            if not entry.scope.matches(is_awesome, is_python):
                 logging.debug(
-                    "Scope exclusion: %s/%s (%s) not applicable to %s repo.",
+                    "Scope exclusion: %s/%s (%s) not applicable to repo "
+                    "(awesome=%s, python=%s).",
                     reg_comp.name,
                     entry.file_id,
                     entry.scope.name,
-                    repo_label,
+                    is_awesome,
+                    is_python,
                 )
                 if (
                     not scope_bypassed
@@ -732,10 +736,6 @@ def run_init(
                 _fetch_extra_labels(output_dir, result, config=config)
 
         elif isinstance(comp, TemplateComponent):
-            if not repo_slug:
-                from .metadata import Metadata
-
-                repo_slug = Metadata().repo_slug
             if repo_slug:
                 init_awesome_template(output_dir, repo_slug, result)
 

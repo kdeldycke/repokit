@@ -67,7 +67,12 @@ class SyncMode(Enum):
 
 
 class RepoScope(Enum):
-    """Which repository types a file entry applies to.
+    """Which repository types a component or file entry applies to.
+
+    The classification has two axes: whether the repo is an `awesome-*` list
+    and whether it carries a PEP 621 `pyproject.toml`. In practice these are
+    mutually exclusive (awesome repos are content lists, not Python packages),
+    so a single scope value suffices.
 
     Scope restrictions are defaults: they apply during bare `repomatic init`
     but are bypassed when components are explicitly named on the CLI or
@@ -75,24 +80,26 @@ class RepoScope(Enum):
     """
 
     ALL = auto()
-    """Included in all repository types."""
+    """Included in every repository type."""
 
     AWESOME_ONLY = auto()
-    """Only for awesome-* repositories."""
+    """Only for `awesome-*` repositories."""
 
-    NON_AWESOME = auto()
-    """Only for non-awesome repositories."""
+    PYTHON_ONLY = auto()
+    """Only for Python projects (PEP 621 `[project].name` present)."""
 
-    def matches(self, is_awesome: bool) -> bool:
-        """Whether this scope applies to the given repository type.
+    def matches(self, is_awesome: bool, is_python: bool) -> bool:
+        """Whether this scope applies to the given repository traits.
 
         :param is_awesome: `True` for `awesome-*` repositories.
+        :param is_python: `True` for repositories whose `pyproject.toml`
+            declares a PEP 621 `[project].name`.
         """
         if self is RepoScope.ALL:
             return True
         if self is RepoScope.AWESOME_ONLY:
             return is_awesome
-        return not is_awesome
+        return is_python
 
 
 @dataclass(frozen=True)
@@ -321,7 +328,7 @@ COMPONENTS: tuple[Component, ...] = (
     BundledComponent(
         name="codecov",
         description="Codecov PR comment config (.github/codecov.yaml)",
-        scope=RepoScope.NON_AWESOME,
+        scope=RepoScope.PYTHON_ONLY,
         # Codecov reads config directly from the repo; the file must stay on
         # disk for the settings to take effect.
         keep_unmodified=True,
@@ -330,7 +337,6 @@ COMPONENTS: tuple[Component, ...] = (
     BundledComponent(
         name="renovate",
         description="Renovate config (renovate.json5)",
-        scope=RepoScope.NON_AWESOME,
         init_default=InitDefault.EXCLUDE,
         files=(FileEntry("renovate.json5"),),
     ),
@@ -340,7 +346,7 @@ COMPONENTS: tuple[Component, ...] = (
             "Composite action that publishes to PyPI via Trusted Publishing"
             " (.github/actions/publish-pypi/)"
         ),
-        scope=RepoScope.NON_AWESOME,
+        scope=RepoScope.PYTHON_ONLY,
         # GitHub Actions resolves `uses: ./.github/actions/publish-pypi` and
         # `uses: kdeldycke/repomatic/.github/actions/publish-pypi@vX.Y.Z`
         # directly from the repo path; the file must stay on disk even when
@@ -510,12 +516,12 @@ COMPONENTS: tuple[Component, ...] = (
             FileEntry(
                 "changelog.yaml",
                 ".github/workflows/changelog.yaml",
-                scope=RepoScope.NON_AWESOME,
+                scope=RepoScope.PYTHON_ONLY,
             ),
             FileEntry(
                 "debug.yaml",
                 ".github/workflows/debug.yaml",
-                scope=RepoScope.NON_AWESOME,
+                scope=RepoScope.PYTHON_ONLY,
             ),
             FileEntry("docs.yaml", ".github/workflows/docs.yaml"),
             FileEntry("labels.yaml", ".github/workflows/labels.yaml"),
@@ -523,7 +529,7 @@ COMPONENTS: tuple[Component, ...] = (
             FileEntry(
                 "release.yaml",
                 ".github/workflows/release.yaml",
-                scope=RepoScope.NON_AWESOME,
+                scope=RepoScope.PYTHON_ONLY,
             ),
             FileEntry("renovate.yaml", ".github/workflows/renovate.yaml"),
             FileEntry(
@@ -548,7 +554,7 @@ COMPONENTS: tuple[Component, ...] = (
     GeneratedComponent(
         name="changelog",
         description="Minimal changelog.md",
-        scope=RepoScope.NON_AWESOME,
+        scope=RepoScope.PYTHON_ONLY,
         target=Config.changelog_location.removeprefix("./"),
     ),
     # --- Tool config components (merged into pyproject.toml) ---

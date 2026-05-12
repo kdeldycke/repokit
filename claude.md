@@ -302,7 +302,7 @@ Enums and dataclasses that carry metadata should also carry the methods that int
 
 Existing examples:
 
-- `RepoScope.matches(is_awesome)` encapsulates scope applicability instead of `is_awesome and scope == NON_AWESOME or ...` repeated at every check.
+- `RepoScope.matches(is_awesome, is_python)` encapsulates scope applicability instead of `is_awesome and scope == AWESOME_ONLY or is_python and scope == PYTHON_ONLY or ...` repeated at every check.
 - `NativeFormat.serialize(data)` encapsulates format-specific serialization (YAML/TOML/JSON) instead of an if/elif/elif chain.
 - `ArchiveFormat.tarfile_mode()` encapsulates the tar open mode instead of an inline ternary.
 - `Component.is_enabled(config)` and `FileEntry.is_enabled(config)` encapsulate config key lookup instead of `_config_flag(config, X.config_key, X.config_default)`.
@@ -311,9 +311,11 @@ When adding a new field to a registry type, ask: will callers branch on this val
 
 ### Scope exclusions are defaults, not absolutes
 
-`RepoScope` restrictions and `[tool.repomatic] exclude` entries only apply during bare `repomatic init` (no CLI arguments). Explicitly naming a component or file on the CLI, or listing it in `[tool.repomatic] include`, bypasses both scope and user-config exclusions. This allows workflows to materialize out-of-scope configs at runtime (e.g., `repomatic init renovate` in an awesome repo) and lets users opt into scope-restricted items via config (e.g., `include = ["skills"]` to get awesome-only skills in a non-awesome repo). Config key exclusions (`config_key` fields) always apply regardless of explicit naming or include: the user's `[tool.repomatic]` config is authoritative for feature flags.
+`RepoScope` restrictions and `[tool.repomatic] exclude` entries only apply during bare `repomatic init` (no CLI arguments). Explicitly naming a component or file on the CLI, or listing it in `[tool.repomatic] include`, bypasses both scope and user-config exclusions. This allows workflows to materialize out-of-scope configs at runtime (like `repomatic init publish-pypi-action` in a non-Python repo or `repomatic init lychee` in a non-awesome repo) and lets users opt into scope-restricted items via config (like `include = ["skills"]` to get awesome-only skills in a non-awesome repo). Config key exclusions (`config_key` fields) always apply regardless of explicit naming or include: the user's `[tool.repomatic]` config is authoritative for feature flags.
 
-In the source repo, scope exclusions still remove out-of-scope components from `selected` (preventing e.g., an `AWESOME_ONLY` config from being merged into the non-awesome source repo's `pyproject.toml`), but stale-file detection is suppressed so bundled data files are never flagged for deletion.
+`RepoScope` has three states: `ALL` (every repo), `AWESOME_ONLY` (only `awesome-*` repos), `PYTHON_ONLY` (only repos with a PEP 621 `[project].name` in `pyproject.toml`, detected via `repomatic.pyproject.is_python_project`). Awesome and Python are treated as mutually exclusive in practice: awesome repos are content lists, not Python packages. A `pyproject.toml` that only declares `[tool.*]` tables (like a dotfiles repo using `[tool.repomatic]` solely for configuration) is treated as non-Python.
+
+In the source repo, scope exclusions still remove out-of-scope components from `selected` (preventing e.g., an `AWESOME_ONLY` config from being merged into the Python source repo's `pyproject.toml`), but stale-file detection is suppressed so bundled data files are never flagged for deletion.
 
 ### Metadata-driven workflow conditions
 

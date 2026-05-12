@@ -367,6 +367,7 @@ from .config import (
     _extract_field_docstrings,
     load_repomatic_config,
 )
+from .pyproject import is_python_project as _is_python_project
 
 TYPE_CHECKING = False
 if TYPE_CHECKING:
@@ -1520,13 +1521,15 @@ class Metadata:
         return self.glob_files("**/*.{sh,zsh}", "**/.{zshrc,zprofile,zshenv,zlogin}")
 
     @cached_property
-    def is_python_project(self):
+    def is_python_project(self) -> bool:
         """Returns `True` if repository is a Python project.
 
         Presence of a `pyproject.toml` file that respects the standards is enough
-        to consider the project as a Python one.
+        to consider the project as a Python one. Delegates to
+        {func}`repomatic.pyproject.is_python_project` so the detection rule has
+        a single source of truth.
         """
-        return not self.pyproject is None
+        return _is_python_project(pyproject_data=self.pyproject_toml)
 
     @cached_property
     def pyproject_toml(self) -> dict[str, Any]:

@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 from packaging.utils import canonicalize_name
+from pyproject_metadata import ConfigurationError, StandardMetadata
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -104,3 +105,53 @@ def get_project_name(
     if name:
         logging.debug(f"Project name from pyproject.toml: {name}")
     return name
+
+
+def read_pyproject_toml(project_root: Path | None = None) -> dict[str, Any]:
+    """Parse `pyproject.toml` from *project_root*.
+
+    :param project_root: Directory holding `pyproject.toml`. Defaults to the
+        current working directory.
+    :return: Parsed contents, or an empty dict when the file is missing or
+        cannot be decoded.
+    """
+    if project_root is None:
+        project_root = Path()
+    pyproject_path = project_root / "pyproject.toml"
+    if not (pyproject_path.exists() and pyproject_path.is_file()):
+        return {}
+    try:
+        return tomllib.loads(pyproject_path.read_text(encoding="UTF-8"))
+    except tomllib.TOMLDecodeError:
+        return {}
+
+
+def is_python_project(
+    project_root: Path | None = None,
+    pyproject_data: dict[str, Any] | None = None,
+) -> bool:
+    """Detect whether *project_root* hosts a Python project.
+
+    Returns `True` when the `pyproject.toml` parses cleanly through
+    `pyproject_metadata.StandardMetadata.from_pyproject`: it must declare a
+    PEP 621 `[project]` table that respects the standard. A `pyproject.toml`
+    that only carries third-party `[tool.*]` sections does not qualify, so
+    repositories that merely lean on the file for tool configuration (linters,
+    formatters, `[tool.repomatic]` itself) are correctly classified as
+    non-Python.
+
+    :param project_root: Directory to probe. Ignored when *pyproject_data* is
+        supplied; otherwise defaults to the current working directory.
+    :param pyproject_data: Pre-parsed `pyproject.toml`. Pass this when the
+        caller has already parsed the file (e.g., the `Metadata` singleton).
+    :return: `True` when the `[project]` table satisfies PEP 621.
+    """
+    if pyproject_data is None:
+        pyproject_data = read_pyproject_toml(project_root)
+    if not pyproject_data:
+        return False
+    try:
+        StandardMetadata.from_pyproject(pyproject_data)
+    except ConfigurationError:
+        return False
+    return True

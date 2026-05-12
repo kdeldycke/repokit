@@ -486,10 +486,11 @@ class Config:
 
     Use this to opt into components that are excluded by default (`labels`,
     `skills`). Each entry is subtracted from the effective exclude set
-    (defaults + user `exclude`) and bypasses `RepoScope` filtering,
-    so scope-restricted files (like awesome-only skills) are included
-    regardless of repository type. Qualified entries (`component/file`)
-    implicitly select the parent component. Same syntax as `exclude`.
+    (defaults + user `exclude`) and bypasses `RepoScope` filtering, so
+    scope-restricted components (like awesome-only skills or Python-only
+    `publish-pypi-action`) are included regardless of repository type.
+    Qualified entries (`component/file`) implicitly select the parent
+    component. Same syntax as `exclude`.
     """
 
     labels: LabelsConfig = field(

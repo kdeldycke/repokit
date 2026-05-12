@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from repomatic.pyproject import get_project_name
+from repomatic.pyproject import get_project_name, is_python_project
 
 
 def test_get_project_name_from_cwd(tmp_path, monkeypatch):
@@ -51,3 +51,52 @@ def test_get_project_name_with_preloaded_data():
     """Test that get_project_name accepts pre-parsed pyproject data."""
     data = {"project": {"name": "preloaded-pkg"}}
     assert get_project_name(data) == "preloaded-pkg"
+
+
+def test_is_python_project_true_for_pep621(tmp_path):
+    """A PEP 621-compliant `[project]` table qualifies as a Python project."""
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\nname = \"orange-grove\"\nversion = \"0.1.0\"\n",
+        encoding="UTF-8",
+    )
+    assert is_python_project(tmp_path) is True
+
+
+def test_is_python_project_false_for_tool_only_pyproject(tmp_path):
+    """`pyproject.toml` with only `[tool.*]` tables is not a Python project."""
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.ruff]\nline-length = 88\n", encoding="UTF-8"
+    )
+    assert is_python_project(tmp_path) is False
+
+
+def test_is_python_project_false_for_missing_pyproject(tmp_path):
+    """A directory with no `pyproject.toml` is not a Python project."""
+    assert is_python_project(tmp_path) is False
+
+
+def test_is_python_project_false_for_malformed_toml(tmp_path):
+    """A `pyproject.toml` that fails to parse is not a Python project."""
+    (tmp_path / "pyproject.toml").write_text(
+        "not = valid = toml\n", encoding="UTF-8"
+    )
+    assert is_python_project(tmp_path) is False
+
+
+def test_is_python_project_false_for_invalid_pep621(tmp_path):
+    """A `[project]` table missing required PEP 621 fields is not Python.
+
+    `[project]` with only `name` (no `version`, no `dynamic`) fails the
+    `StandardMetadata.from_pyproject` validation, so the repo is not
+    considered Python. Locks in the stricter PEP 621 semantics.
+    """
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "incomplete"\n', encoding="UTF-8"
+    )
+    assert is_python_project(tmp_path) is False
+
+
+def test_is_python_project_accepts_preloaded_data():
+    """`is_python_project` accepts a pre-parsed `pyproject.toml` dict."""
+    data = {"project": {"name": "preloaded", "version": "0.1.0"}}
+    assert is_python_project(pyproject_data=data) is True

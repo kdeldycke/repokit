@@ -110,21 +110,32 @@ def test_composite_actions_keep_unmodified() -> None:
 
 
 @pytest.mark.parametrize(
-    ("scope", "is_awesome", "expected"),
+    ("scope", "is_awesome", "is_python", "expected"),
     [
-        ("ALL", True, True),
-        ("ALL", False, True),
-        ("AWESOME_ONLY", True, True),
-        ("AWESOME_ONLY", False, False),
-        ("NON_AWESOME", True, False),
-        ("NON_AWESOME", False, True),
+        # ALL matches every trait combination.
+        ("ALL", False, False, True),
+        ("ALL", False, True, True),
+        ("ALL", True, False, True),
+        ("ALL", True, True, True),
+        # AWESOME_ONLY matches awesome repos regardless of Python status.
+        ("AWESOME_ONLY", False, False, False),
+        ("AWESOME_ONLY", False, True, False),
+        ("AWESOME_ONLY", True, False, True),
+        ("AWESOME_ONLY", True, True, True),
+        # PYTHON_ONLY matches Python repos regardless of awesome status.
+        ("PYTHON_ONLY", False, False, False),
+        ("PYTHON_ONLY", False, True, True),
+        ("PYTHON_ONLY", True, False, False),
+        ("PYTHON_ONLY", True, True, True),
     ],
 )
-def test_repo_scope_matches(scope: str, is_awesome: bool, expected: bool) -> None:
+def test_repo_scope_matches(
+    scope: str, is_awesome: bool, is_python: bool, expected: bool
+) -> None:
     """Verify RepoScope.matches returns correct results for all combinations."""
     from repomatic.registry import RepoScope
 
-    assert RepoScope[scope].matches(is_awesome) is expected
+    assert RepoScope[scope].matches(is_awesome, is_python) is expected
 
 
 def test_init_help_lists_all_components() -> None:
@@ -458,7 +469,7 @@ def test_has_files_section() -> None:
 def test_init_config_adds_root_section() -> None:
     """Verify that init_config produces a [tool.mypy] section."""
     with NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-        f.write('[project]\nname = "test"\n')
+        f.write('[project]\nname = "test"\nversion = "0.1.0"\n')
         f.flush()
         result = init_config("mypy", Path(f.name))
     Path(f.name).unlink()
@@ -469,7 +480,7 @@ def test_init_config_adds_root_section() -> None:
 def test_init_config_transforms_subsections() -> None:
     """Verify that ruff lint config appears under [tool.ruff]."""
     with NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-        f.write('[project]\nname = "test"\n')
+        f.write('[project]\nname = "test"\nversion = "0.1.0"\n')
         f.flush()
         result = init_config("ruff", Path(f.name))
     Path(f.name).unlink()
@@ -481,7 +492,7 @@ def test_init_config_transforms_subsections() -> None:
 def test_init_config_transforms_array_sections() -> None:
     """Verify that array sections get the tool prefix."""
     with NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-        f.write('[project]\nname = "test"\n')
+        f.write('[project]\nname = "test"\nversion = "0.1.0"\n')
         f.flush()
         result = init_config("bumpversion", Path(f.name))
     Path(f.name).unlink()
@@ -492,7 +503,7 @@ def test_init_config_transforms_array_sections() -> None:
 def test_init_config_preserves_template_comments() -> None:
     """Verify that template comments are preserved during init."""
     with NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-        f.write('[project]\nname = "test"\n')
+        f.write('[project]\nname = "test"\nversion = "0.1.0"\n')
         f.flush()
         result = init_config("bumpversion", Path(f.name))
     Path(f.name).unlink()
@@ -526,7 +537,7 @@ def test_init_config_lychee_preserves_other_sections() -> None:
 def test_full_ruff_init() -> None:
     """Verify full ruff config initialization."""
     with NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-        f.write('[project]\nname = "test"\n')
+        f.write('[project]\nname = "test"\nversion = "0.1.0"\n')
         f.flush()
         result = init_config("ruff", Path(f.name))
     Path(f.name).unlink()
@@ -543,7 +554,7 @@ def test_full_ruff_init() -> None:
 def test_adds_config_to_empty_pyproject() -> None:
     """Verify that config is added to a pyproject.toml without the section."""
     with NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-        f.write('[project]\nname = "test"\n')
+        f.write('[project]\nname = "test"\nversion = "0.1.0"\n')
         f.flush()
         path = Path(f.name)
 
@@ -563,7 +574,7 @@ def test_adds_config_to_empty_pyproject() -> None:
 def test_adds_bumpversion_with_array_sections() -> None:
     """Verify that bumpversion [[files]] sections are transformed."""
     with NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-        f.write('[project]\nname = "test"\n')
+        f.write('[project]\nname = "test"\nversion = "0.1.0"\n')
         f.flush()
         path = Path(f.name)
 
@@ -579,7 +590,7 @@ def test_adds_bumpversion_with_array_sections() -> None:
 def test_returns_none_if_section_exists() -> None:
     """Verify that None is returned if the section already exists."""
     with NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-        f.write('[project]\nname = "test"\n\n[tool.ruff]\npreview = false\n')
+        f.write('[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.ruff]\npreview = false\n')
         f.flush()
         path = Path(f.name)
 
@@ -650,7 +661,7 @@ def test_init_creates_all_default_files(
     """Verify all default component files are created (with no exclusions)."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["agents", "labels", "renovate", "skills"]\n',
         encoding="UTF-8",
@@ -764,6 +775,12 @@ def test_init_idempotent(tmp_path: Path):
     Re-running `repomatic init` against an unchanged tree must be a no-op:
     files identical to what `init` would write are not reported as updated.
     """
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        '[project]\nname = "fruitbasket"\nversion = "0.1.0"\n',
+        encoding="UTF-8",
+    )
+
     result1 = run_init(output_dir=tmp_path)
     assert len(result1.created) > 0
     assert len(result1.updated) == 0
@@ -1371,7 +1388,7 @@ def test_init_default_excludes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Verify default exclude skips agents, labels, renovate, and skills."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n',
+        '[project]\nname = "test"\nversion = "0.1.0"\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -1399,7 +1416,7 @@ def test_init_respects_exclude_components(
     """Verify exclude config skips listed components."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'exclude = ["skills", "labels"]\n',
         encoding="UTF-8",
@@ -1429,7 +1446,7 @@ def test_init_respects_exclude_workflow_files(
     """Verify exclude config with workflow file entries skips those workflows."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'exclude = ["workflows/debug.yaml", "workflows/docs.yaml"]\n',
         encoding="UTF-8",
@@ -1454,7 +1471,7 @@ def test_init_respects_exclude_skill_files(
     """Verify exclude config with skill file entries skips those skills."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["skills"]\n'
         'exclude = ["skills/repomatic-audit", "skills/repomatic-topics"]\n',
@@ -1477,8 +1494,6 @@ def test_init_changelog_excluded_for_awesome_repo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     """Verify changelog.md is not created for awesome-* repos."""
-    pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text('[project]\nname = "test"\n', encoding="UTF-8")
     monkeypatch.chdir(tmp_path)
 
     result = run_init(output_dir=tmp_path, repo_slug="user/awesome-python")
@@ -1491,8 +1506,6 @@ def test_init_changelog_excluded_existing_for_awesome_repo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     """Verify existing changelog.md is flagged as excluded for awesome-* repos."""
-    pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text('[project]\nname = "test"\n', encoding="UTF-8")
     changelog = tmp_path / "changelog.md"
     changelog.write_text("# Changelog\n", encoding="UTF-8")
     monkeypatch.chdir(tmp_path)
@@ -1506,8 +1519,6 @@ def test_init_codecov_excluded_existing_for_awesome_repo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     """Verify existing .github/codecov.yaml is flagged as excluded for awesome repos."""
-    pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text('[project]\nname = "test"\n', encoding="UTF-8")
     codecov = tmp_path / ".github" / "codecov.yaml"
     codecov.parent.mkdir(parents=True, exist_ok=True)
     codecov.write_text("comment:\n  layout: reach\n", encoding="UTF-8")
@@ -1531,7 +1542,7 @@ def test_include_config_includes_all_skill_files(
     """Config ``include = ["skills"]`` produces all skills regardless of repo type."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n[tool.repomatic]\ninclude = ["skills"]\n',
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.repomatic]\ninclude = ["skills"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -1549,23 +1560,22 @@ def test_explicit_component_bypasses_scope_exclusion(
 ):
     """Explicit component request overrides scope exclusion.
 
-    ``repomatic init renovate`` in an awesome repo should produce
-    renovate.json5 even though the renovate component has
-    ``scope=NON_AWESOME``. Scope exclusions only apply during bare
-    ``repomatic init`` (no explicit components).
+    ``repomatic init codecov`` in an awesome repo should produce
+    ``.github/codecov.yaml`` even though the codecov component has
+    ``scope=PYTHON_ONLY`` and awesome repos are non-Python. Scope
+    exclusions only apply during bare ``repomatic init`` (no explicit
+    components).
     """
-    pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text('[project]\nname = "test"\n', encoding="UTF-8")
     monkeypatch.chdir(tmp_path)
 
     result = run_init(
-        components=["renovate"],
+        components=["codecov"],
         output_dir=tmp_path,
         repo_slug="user/awesome-billing",
     )
 
     created_set = set(result.created)
-    assert "renovate.json5" in created_set
+    assert ".github/codecov.yaml" in created_set
 
 
 def test_include_config_bypasses_scope_exclusion(
@@ -1573,12 +1583,13 @@ def test_include_config_bypasses_scope_exclusion(
 ):
     """Config ``include`` bypasses scope exclusions, like CLI explicit naming.
 
-    ``include = ["renovate"]`` in an awesome repo should create renovate.json5
-    even though renovate is scoped to NON_AWESOME by default.
+    ``include = ["codecov"]`` in an awesome repo should create
+    ``.github/codecov.yaml`` even though codecov is scoped to
+    ``PYTHON_ONLY`` and awesome repos are non-Python.
     """
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n[tool.repomatic]\ninclude = ["renovate"]\n',
+        "[tool.repomatic]\ninclude = [\"codecov\"]\n",
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -1589,7 +1600,7 @@ def test_include_config_bypasses_scope_exclusion(
     )
 
     created_set = set(result.created)
-    assert "renovate.json5" in created_set
+    assert ".github/codecov.yaml" in created_set
 
 
 def test_include_bypasses_scope_for_bundled_component(
@@ -1597,14 +1608,14 @@ def test_include_bypasses_scope_for_bundled_component(
 ):
     """Include bypasses scope for a ``BundledComponent`` with files.
 
-    Codecov is ``NON_AWESOME`` and ``init_default=INCLUDE``. In an awesome
-    repo it would normally be scope-excluded. With ``include``, the scope
-    bypass falls through to file-level checks (the file has ``scope=ALL``
-    so nothing is excluded).
+    Codecov is ``PYTHON_ONLY`` and ``init_default=INCLUDE``. In a non-Python
+    awesome repo it would normally be scope-excluded. With ``include``, the
+    scope bypass falls through to file-level checks (the file has
+    ``scope=ALL`` so nothing is excluded).
     """
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n[tool.repomatic]\ninclude = ["codecov"]\n',
+        "[tool.repomatic]\ninclude = [\"codecov\"]\n",
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -1626,7 +1637,7 @@ def test_include_bypasses_scope_for_tool_config(
     """
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n[tool.repomatic]\ninclude = ["lychee"]\n',
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.repomatic]\ninclude = ["lychee"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -1642,14 +1653,12 @@ def test_bare_init_applies_scope_exclusion(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     """Bare init without ``include`` or CLI components applies scope exclusions."""
-    pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text('[project]\nname = "test"\n', encoding="UTF-8")
     monkeypatch.chdir(tmp_path)
 
     result = run_init(output_dir=tmp_path, repo_slug="user/awesome-billing")
 
     created_set = set(result.created)
-    # NON_AWESOME component and workflow files are scope-excluded in awesome repos.
+    # PYTHON_ONLY component and workflow files are scope-excluded in awesome repos.
     assert ".github/codecov.yaml" not in created_set
     assert ".github/workflows/changelog.yaml" not in created_set
     assert ".github/workflows/debug.yaml" not in created_set
@@ -1664,7 +1673,6 @@ def test_file_level_include_bypasses_scope(
     """File-level ``include`` entry bypasses scope for that specific file only."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
         "[tool.repomatic]\n"
         'include = ["workflows/changelog.yaml"]\n',
         encoding="UTF-8",
@@ -1674,9 +1682,9 @@ def test_file_level_include_bypasses_scope(
     result = run_init(output_dir=tmp_path, repo_slug="user/awesome-billing")
 
     created_set = set(result.created)
-    # changelog.yaml (NON_AWESOME) included via file-level include.
+    # changelog.yaml (PYTHON_ONLY) included via file-level include.
     assert ".github/workflows/changelog.yaml" in created_set
-    # Other NON_AWESOME workflows remain scope-excluded.
+    # Other PYTHON_ONLY workflows remain scope-excluded.
     assert ".github/workflows/debug.yaml" not in created_set
     assert ".github/workflows/release.yaml" not in created_set
 
@@ -1692,7 +1700,7 @@ def test_file_level_include_implies_parent_component(
     """
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["skills/awesome-triage"]\n',
         encoding="UTF-8",
@@ -1716,7 +1724,7 @@ def test_exclude_overrides_include_scope_bypass(
     """Explicit ``exclude`` entries take precedence over ``include`` scope bypass."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["skills"]\n'
         'exclude = ["skills/awesome-triage"]\n',
@@ -1734,13 +1742,89 @@ def test_exclude_overrides_include_scope_bypass(
     assert ".claude/skills/repomatic-init/SKILL.md" in created_set
 
 
+def test_publish_pypi_action_excluded_in_non_python_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """`publish-pypi-action` is skipped when the repo is not a Python project.
+
+    Reproduces the scenario where a non-Python repository (e.g., a dotfiles
+    project) carries a `pyproject.toml` solely for `[tool.*]` configuration.
+    The composite action targets PyPI publishing, so it has no purpose there.
+    """
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text("[tool.repomatic]\n", encoding="UTF-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = run_init(output_dir=tmp_path, repo_slug="user/dotfiles")
+
+    created_set = set(result.created)
+    assert ".github/actions/publish-pypi/action.yaml" not in created_set
+
+
+def test_publish_pypi_action_included_in_python_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """`publish-pypi-action` is installed when the repo is a Python project."""
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        '[project]\nname = "fruitbasket"\nversion = "0.1.0"\n',
+        encoding="UTF-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = run_init(output_dir=tmp_path, repo_slug="user/fruitbasket")
+
+    created_set = set(result.created)
+    assert ".github/actions/publish-pypi/action.yaml" in created_set
+
+
+def test_explicit_component_bypasses_python_only_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Explicit CLI naming bypasses `RepoScope.PYTHON_ONLY`.
+
+    When the caller explicitly asks for `publish-pypi-action`, the component
+    is materialized regardless of repo type, matching the existing scope-bypass
+    semantics for awesome-only components.
+    """
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text("[tool.repomatic]\n", encoding="UTF-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = run_init(
+        components=["publish-pypi-action"],
+        output_dir=tmp_path,
+        repo_slug="user/dotfiles",
+    )
+
+    created_set = set(result.created)
+    assert ".github/actions/publish-pypi/action.yaml" in created_set
+
+
+def test_include_config_bypasses_python_only_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """`[tool.repomatic] include` bypasses `RepoScope.PYTHON_ONLY`."""
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        "[tool.repomatic]\ninclude = [\"publish-pypi-action\"]\n",
+        encoding="UTF-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = run_init(output_dir=tmp_path, repo_slug="user/dotfiles")
+
+    created_set = set(result.created)
+    assert ".github/actions/publish-pypi/action.yaml" in created_set
+
+
 def test_init_respects_exclude_label_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     """Verify exclude config with label file entries skips those label files."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["labels"]\n'
         'exclude = ["labels/labeller-content-based.yaml"]\n',
@@ -1763,7 +1847,7 @@ def test_init_mixed_exclude(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Verify exclude with both component and file entries."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["skills"]\n'
         'exclude = ["workflows/debug.yaml", "skills/repomatic-audit"]\n',
@@ -1790,7 +1874,7 @@ def test_init_detects_excluded_component_files(
     # First init with labels included to create all files.
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n[tool.repomatic]\ninclude = ["labels"]\n',
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.repomatic]\ninclude = ["labels"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -1801,7 +1885,7 @@ def test_init_detects_excluded_component_files(
 
     # Now re-run without include — labels falls back to default exclusion.
     pyproject.write_text(
-        '[project]\nname = "test"\n',
+        '[project]\nname = "test"\nversion = "0.1.0"\n',
         encoding="UTF-8",
     )
 
@@ -1819,7 +1903,7 @@ def test_init_detects_excluded_skill_file(
     # First create all skills (include overrides default exclusion).
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n[tool.repomatic]\ninclude = ["skills"]\n',
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.repomatic]\ninclude = ["skills"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -1830,7 +1914,7 @@ def test_init_detects_excluded_skill_file(
 
     # Now exclude just that skill and re-run.
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["skills"]\n'
         'exclude = ["skills/awesome-triage"]\n',
@@ -1857,7 +1941,7 @@ def test_init_detects_auto_excluded_awesome_triage(
     # Create skills including awesome-triage (as an awesome repo).
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n[tool.repomatic]\ninclude = ["skills"]\n',
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.repomatic]\ninclude = ["skills"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -1868,7 +1952,7 @@ def test_init_detects_auto_excluded_awesome_triage(
 
     # Re-run as a non-awesome repo without include covering skills.
     pyproject.write_text(
-        '[project]\nname = "test"\n\n[tool.repomatic]\n',
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.repomatic]\n',
         encoding="UTF-8",
     )
     result = run_init(output_dir=tmp_path, repo_slug="user/regular-project")
@@ -1925,7 +2009,7 @@ def test_init_skills_custom_location(tmp_path: Path, monkeypatch: pytest.MonkeyP
     """Verify skills are written to a custom location when configured."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["skills"]\n'
         'skills.location = "./custom/skills/"\n',
@@ -1988,7 +2072,7 @@ def test_init_agents_custom_location(tmp_path: Path, monkeypatch: pytest.MonkeyP
     """Verify agents are written to a custom location when configured."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["agents"]\n'
         'agents.location = "./custom/agents/"\n',
@@ -2013,7 +2097,7 @@ def test_init_detects_excluded_agent_custom_location(
     """Verify excluded agent detection works at custom locations."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["agents"]\n'
         'agents.location = "./custom/agents/"\n',
@@ -2027,7 +2111,7 @@ def test_init_detects_excluded_agent_custom_location(
 
     # Exclude that agent and re-run.
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["agents"]\n'
         'exclude = ["agents/grunt-qa"]\n'
@@ -2047,7 +2131,7 @@ def test_init_detects_excluded_skill_custom_location(
     """Verify excluded skill detection works at custom locations."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["skills"]\n'
         'skills.location = "./custom/skills/"\n',
@@ -2061,7 +2145,7 @@ def test_init_detects_excluded_skill_custom_location(
 
     # Exclude that skill and re-run.
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["skills"]\n'
         'exclude = ["skills/awesome-triage"]\n'
@@ -2081,7 +2165,7 @@ def test_init_detects_disabled_opt_in_workflow(
     """Verify disabled opt-in workflows on disk are detected as excluded."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         "notification.unsubscribe = true\n",
         encoding="UTF-8",
@@ -2096,7 +2180,7 @@ def test_init_detects_disabled_opt_in_workflow(
 
     # Disable the opt-in workflow and re-run.
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         "notification.unsubscribe = false\n",
         encoding="UTF-8",
@@ -2119,7 +2203,7 @@ def test_init_cli_delete_excluded(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n[tool.repomatic]\ninclude = ["skills"]\n',
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.repomatic]\ninclude = ["skills"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -2130,7 +2214,7 @@ def test_init_cli_delete_excluded(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     # Exclude awesome-triage and re-run with --delete-excluded.
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["skills"]\n'
         'exclude = ["skills/awesome-triage"]\n',
@@ -2161,7 +2245,7 @@ def test_init_cli_no_delete_excluded_warns(
 
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n[tool.repomatic]\ninclude = ["skills"]\n',
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.repomatic]\ninclude = ["skills"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -2172,7 +2256,7 @@ def test_init_cli_no_delete_excluded_warns(
 
     # Exclude awesome-triage and re-run without --delete-excluded.
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["skills"]\n'
         'exclude = ["skills/awesome-triage"]\n',
@@ -2197,7 +2281,7 @@ def test_init_explicit_components_bypass_exclude(
     """Verify explicit CLI components override exclusion."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'exclude = ["labels", "skills", "changelog"]\n',
         encoding="UTF-8",
@@ -2222,7 +2306,7 @@ def test_init_exclude_unknown_component_raises(
     """Verify unknown component name in exclude raises ValueError."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'exclude = ["nonexistent-component"]\n',
         encoding="UTF-8",
@@ -2239,7 +2323,7 @@ def test_init_exclude_unknown_file_raises(
     """Verify unknown file identifier in exclude raises ValueError."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'exclude = ["workflows/nonexistent.yaml"]\n',
         encoding="UTF-8",
@@ -2256,7 +2340,7 @@ def test_init_include_unknown_component_raises(
     """Verify unknown component name in include raises ValueError."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'include = ["nonexistent-component"]\n',
         encoding="UTF-8",
@@ -2273,7 +2357,7 @@ def test_init_include_overrides_default_exclusions(
     """Verify include overrides default exclusions additively."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n[tool.repomatic]\ninclude = ["labels"]\n',
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.repomatic]\ninclude = ["labels"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -2297,7 +2381,7 @@ def test_init_exclude_additive_to_defaults(
     """Verify user exclude is additive to default exclusions."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "test"\n\n'
+        '[project]\nname = "test"\nversion = "0.1.0"\n\n'
         "[tool.repomatic]\n"
         'exclude = ["workflows/debug.yaml"]\n',
         encoding="UTF-8",
@@ -2583,7 +2667,7 @@ def test_init_reports_unmodified_configs(
     from repomatic.tool_runner import get_data_file_path
 
     pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text('[project]\nname = "test"\n', encoding="UTF-8")
+    pyproject.write_text('[project]\nname = "test"\nversion = "0.1.0"\n', encoding="UTF-8")
     monkeypatch.chdir(tmp_path)
 
     with get_data_file_path("yamllint.yaml") as bundled:
@@ -2599,7 +2683,7 @@ def test_init_no_unmodified_when_different(
 ):
     """Init does not flag modified config files as unmodified."""
     pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text('[project]\nname = "test"\n', encoding="UTF-8")
+    pyproject.write_text('[project]\nname = "test"\nversion = "0.1.0"\n', encoding="UTF-8")
     monkeypatch.chdir(tmp_path)
 
     (tmp_path / ".yamllint.yaml").write_text(
