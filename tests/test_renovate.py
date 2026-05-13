@@ -644,6 +644,29 @@ def test_add_exclude_newer_packages_creates_line(tmp_path):
     assert parsed["tool"]["uv"]["exclude-newer-package"]["requests"] == "0 day"
 
 
+def test_add_exclude_newer_packages_inserts_after_exclude_newer(tmp_path):
+    """A new entry is placed right after `exclude-newer`, matching pyproject-fmt."""
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        "[tool.uv]\n"
+        "# Cutoff comment.\n"
+        'exclude-newer = "1 week"\n'
+        "# Root-level build comment.\n"
+        'build-backend.module-root = ""\n'
+    )
+    assert add_exclude_newer_packages(pyproject, {"urllib3"}) is True
+    content = pyproject.read_text()
+    expected = (
+        "[tool.uv]\n"
+        "# Cutoff comment.\n"
+        'exclude-newer = "1 week"\n'
+        'exclude-newer-package = { urllib3 = "0 day" }\n'
+        "# Root-level build comment.\n"
+        'build-backend.module-root = ""\n'
+    )
+    assert content == expected
+
+
 def test_add_exclude_newer_packages_multiple(tmp_path):
     """Multiple packages are added in sorted order."""
     pyproject = tmp_path / "pyproject.toml"

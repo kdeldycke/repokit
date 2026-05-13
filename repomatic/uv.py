@@ -505,7 +505,11 @@ def add_exclude_newer_packages(
     if pkg_table is not None:
         uv["exclude-newer-package"] = new_table
     else:
-        uv.add("exclude-newer-package", new_table)
+        # Insert right after `exclude-newer` to match pyproject-fmt's
+        # ordering rule for `[tool.uv]`. Appending at the end would
+        # produce a file that pyproject-fmt rewrites on its next run,
+        # leaking the security fix into a follow-up format-pyproject PR.
+        uv.value._insert_after("exclude-newer", "exclude-newer-package", new_table)
 
     pyproject_path.write_text(tomlkit.dumps(doc), encoding="UTF-8")
     logging.info(
