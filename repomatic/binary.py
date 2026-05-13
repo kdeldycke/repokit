@@ -67,7 +67,7 @@ NUITKA_BUILD_TARGETS = {
         "extension": "exe",
     },
     "windows-x64": {
-        "os": "windows-2025",
+        "os": "windows-2025-vs2026",
         "platform_id": "windows",
         "arch": "x64",
         "extension": "exe",
