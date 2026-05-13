@@ -11,6 +11,9 @@
 
 ## [`6.18.3` (2026-05-11)](https://github.com/kdeldycke/repomatic/compare/v6.18.2...v6.18.3)
 
+> [!NOTE]
+> `6.18.3` is available on [🐍 PyPI](https://pypi.org/project/repomatic/6.18.3/) and [🐙 GitHub](https://github.com/kdeldycke/repomatic/releases/tag/v6.18.3).
+
 - Fix `autofix.yaml` `setup-guide` job being skipped on `workflow_dispatch` re-runs. The `if:` condition now allows both `push` and `workflow_dispatch` events instead of `push` only, so manual re-runs from the Actions UI re-evaluate the setup guide and update the issue accordingly.
 - Fix `release.yaml` `publish-pypi` job running against downstream callers and failing PyPI trusted publishing with a `job_workflow_ref` mismatch. The gate now uses `github.repository == 'kdeldycke/repomatic'` (which reflects the caller's repo under `workflow_call`) instead of `github.event_name == 'push'` (which stays `push` in both self-release and downstream contexts), so the upstream-only job is properly skipped when invoked from a downstream caller. Downstream repos publish through their own thin-caller `publish-pypi` job, which inherits the correct OIDC context.
 - Switch the `compile-binaries` job from `--onefile` to `--mode=onefile`, the documented spelling since Nuitka 4.0 (`--onefile` is now hidden but still accepted).
