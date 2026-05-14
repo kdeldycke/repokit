@@ -31,11 +31,11 @@ invoke(repomatic, args=['run', '--list'])
 | :-------------------------------------------------------------------- | :------- | :---------- | :----------------------------------------------------------- |
 | [actionlint](https://github.com/rhysd/actionlint)                     | `1.7.12` | Binary      | `.github/actionlint.yaml`                                    |
 | [autopep8](https://github.com/hhatto/autopep8)                        | `2.3.2`  | PyPI        | CLI flags only                                               |
-| [Biome](https://github.com/biomejs/biome)                             | `2.4.13` | Binary      | `biome.json`, `biome.jsonc`                                  |
+| [Biome](https://github.com/biomejs/biome)                             | `2.4.14` | Binary      | `biome.json`, `biome.jsonc`                                  |
 | [bump-my-version](https://github.com/callowayproject/bump-my-version) | `1.2.7`  | PyPI        | `[tool.bump-my-version]` in `pyproject.toml`                 |
 | [Gitleaks](https://github.com/gitleaks/gitleaks)                      | `8.30.1` | Binary      | `.gitleaks.toml`, `.github/gitleaks.toml`                    |
 | [labelmaker](https://github.com/jwodder/labelmaker)                   | `0.6.4`  | Binary      | CLI flags only                                               |
-| [Lychee](https://github.com/lycheeverse/lychee)                       | `0.24.1` | Binary      | `lychee.toml`, `[tool.lychee]` in `pyproject.toml`           |
+| [Lychee](https://github.com/lycheeverse/lychee)                       | `0.24.2` | Binary      | `lychee.toml`, `[tool.lychee]` in `pyproject.toml`           |
 | [mdformat](https://github.com/hukkin/mdformat)                        | `1.0.0`  | PyPI        | `.mdformat.toml`, `[tool.mdformat]` in `pyproject.toml`      |
 | [mypy](https://github.com/python/mypy)                                | `1.19.1` | PyPI (venv) | `[tool.mypy]` in `pyproject.toml`                            |
 | [pyproject-fmt](https://github.com/tox-dev/pyproject-fmt)             | `2.16.2` | PyPI        | `[tool.pyproject-fmt]` in `pyproject.toml`                   |
@@ -255,7 +255,7 @@ For tools with subcommands (ruff, biome, gitleaks), the subcommand goes after `-
 
 ### [Biome](https://github.com/biomejs/biome)
 
-**Installed version:** `2.4.13`
+**Installed version:** `2.4.14`
 
 **Installation method:** Binary (downloaded from GitHub Releases)
 
@@ -299,7 +299,7 @@ For tools with subcommands (ruff, biome, gitleaks), the subcommand goes after `-
 
 ### [Lychee](https://github.com/lycheeverse/lychee)
 
-**Installed version:** `0.24.1`
+**Installed version:** `0.24.2`
 
 **Installation method:** Binary (downloaded from GitHub Releases)
 
