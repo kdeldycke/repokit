@@ -611,18 +611,29 @@ treatment as tool-runner default configs).
 _PUBLISH_PYPI_DEFAULT_ACTION_REF: Final[str] = (
     f"{DEFAULT_REPO}/.github/actions/publish-pypi@{DEFAULT_VERSION}"
 )
-"""Literal default action ref carried inside the bundled fragment.
+"""Default action ref the bundled fragment is expected to carry.
 
-The fragment ships with this exact string so it parses as a working YAML
-snippet. The generator below rewrites it to the requested
-{repo, version, sha} on the way out via plain `.replace()`, mirroring the
-convention used by :mod:`repomatic.release_prep` to rewrite action refs in
-workflow files at freeze time.
+Tied to :data:`DEFAULT_VERSION` so it tracks the in-tree state expected at
+import time: ``@main`` during development, ``@vX.Y.Z`` in wheels built from
+a freeze commit. Used by the static
+:func:`test_release_thin_caller_loads_fragment_from_data` conformance check.
 
-Tied to :data:`DEFAULT_VERSION` so the search string tracks what is actually
-in the bundled fragment: ``@main`` during development, ``@vX.Y.Z`` in wheels
-built from a freeze commit (where :mod:`repomatic.release_prep` rewrites the
-fragment in lockstep with the rest of the workflow tree).
+The generator below does not use this constant for substitution: it matches
+any ref attached to the canonical action path via regex, so a fragment that
+has drifted from this expected default (e.g., a stale-but-syntactically-valid
+copy left over by a previous freeze) is still rewritten correctly instead
+of silently emitting the wrong ref.
+"""
+
+_PUBLISH_PYPI_ACTION_REF_PATTERN: Final[re.Pattern[str]] = re.compile(
+    rf"{re.escape(DEFAULT_REPO)}/\.github/actions/publish-pypi@\S+"
+)
+"""Regex matching the canonical `publish-pypi` action ref in the fragment.
+
+Matches the literal `kdeldycke/repomatic/.github/actions/publish-pypi@`
+followed by any non-whitespace ref token (branch, tag, or SHA). The
+substitution rewrites this token, regardless of which version (or branch,
+or SHA) the fragment happens to carry.
 """
 
 
@@ -640,16 +651,20 @@ def _render_publish_pypi_job(
 
     The job body lives in the bundled file
     `repomatic/data/release-publish-pypi-job.yaml` and ships with the upstream
-    `@main` ref baked in. This function rewrites that single ref into the
-    {repo, version, sha} the caller requests via plain `.replace()`, the same
-    text-substitution convention used by :mod:`repomatic.release_prep` to
-    freeze action refs in workflow files at release time.
+    `@main` ref baked in. This function rewrites that ref into the
+    {repo, version, sha} the caller requests by regex-matching the canonical
+    action path: a fragment whose baked-in ref has drifted from the expected
+    default (e.g., a stale freeze leftover) is still rewritten correctly
+    rather than silently emitting the wrong ref.
 
     :param repo: Upstream repository owning the composite action.
     :param version: Version reference for the action ref.
     :param commit_sha: Optional 40-character SHA for pin-style refs (renders
         as `@sha # version` like Renovate).
     :return: YAML lines (without trailing blank).
+    :raises RuntimeError: If the bundled fragment does not contain a
+        recognizable `publish-pypi` action ref, meaning the file shape has
+        changed in a way the renderer was not updated to handle.
     """
     if commit_sha:
         action_ref = f"{commit_sha} # {version}"
@@ -675,7 +690,17 @@ def _render_publish_pypi_job(
 
     indented = ["  " + line if line else "" for line in body_lines]
     rendered = "\n".join(indented)
-    rendered = rendered.replace(_PUBLISH_PYPI_DEFAULT_ACTION_REF, target_ref)
+    rendered, substitutions = _PUBLISH_PYPI_ACTION_REF_PATTERN.subn(
+        target_ref, rendered
+    )
+    if substitutions == 0:
+        msg = (
+            f"Bundled fragment {_PUBLISH_PYPI_FRAGMENT_FILE!r} does not"
+            f" contain a {DEFAULT_REPO}/.github/actions/publish-pypi@<ref>"
+            f" entry. The file shape has changed in a way the renderer was"
+            f" not updated to handle."
+        )
+        raise RuntimeError(msg)
     return ["", *rendered.split("\n")]
 
 

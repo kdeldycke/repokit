@@ -5,6 +5,8 @@
 > [!WARNING]
 > This version is **not released yet** and is under active development.
 
+- Make `release.yaml` thin-caller generation robust to drift between the bundled `release-publish-pypi-job.yaml` fragment and the in-tree `__version__`: the action-ref substitution now matches the canonical `kdeldycke/repomatic/.github/actions/publish-pypi@<ref>` path via regex instead of the literal `_PUBLISH_PYPI_DEFAULT_ACTION_REF` string, and raises `RuntimeError` when no recognizable ref is found rather than silently emitting whatever ref the fragment happens to carry.
+
 ## [`6.18.4` (2026-05-14)](https://github.com/kdeldycke/repomatic/compare/v6.18.3...v6.18.4)
 
 - Replace the `RepoScope.NON_AWESOME` variant with `PYTHON_ONLY`, gating affected components on the presence of a PEP 621 `[project].name` in `pyproject.toml` (detected via the new `repomatic.pyproject.is_python_project` helper). Repos that carry `pyproject.toml` only for `[tool.*]` configuration (like dotfiles) are now classified as non-Python and skip Python-flavored components by default. `RepoScope.matches()` now takes both `is_awesome` and `is_python` traits. Existing entries are reclassified: `codecov`, `publish-pypi-action`, `changelog.yaml`, `debug.yaml`, `release.yaml`, and the generated `changelog.md` move to `PYTHON_ONLY`; `renovate` moves to `ALL` (Renovate is language-agnostic). Explicit CLI naming and `[tool.repomatic] include` continue to bypass scope, so a dotfiles repo can still opt into `publish-pypi-action` if needed.

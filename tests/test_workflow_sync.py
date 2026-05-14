@@ -319,12 +319,12 @@ def test_release_thin_caller_loads_fragment_from_data() -> None:
     Locking in the file-backed template means any future SHA pins inside
     the job body live in a `.yaml` file Renovate can scan, not in Python
     string literals. The fragment carries a real working default action ref
-    that the generator rewrites via `.replace()` (same convention as
+    that the generator rewrites at render time (same convention as
     `release_prep.freeze_workflow_urls`): no bespoke templating syntax.
 
     The ref carried in the fragment must match
-    :data:`_PUBLISH_PYPI_DEFAULT_ACTION_REF`: that constant is the search
-    string the generator hands to `.replace()`, and
+    :data:`_PUBLISH_PYPI_DEFAULT_ACTION_REF`: that constant captures the
+    in-tree state expected at import time, and
     :mod:`repomatic.release_prep` rewrites both sides in lockstep at freeze
     time (default branch during development, tag in wheels built from a
     freeze commit).
@@ -335,6 +335,73 @@ def test_release_thin_caller_loads_fragment_from_data() -> None:
     job = parsed["publish-pypi"]
     assert job["permissions"]["id-token"] == "write"
     assert _PUBLISH_PYPI_DEFAULT_ACTION_REF in fragment
+
+
+def _patch_publish_pypi_fragment(monkeypatch, fragment_body: str) -> None:
+    """Override only the publish-pypi fragment, delegating other names to disk.
+
+    `get_data_content` is also called to fetch `release.yaml` itself for
+    trigger extraction; a blanket override would feed the test fragment to
+    that call and break `extract_trigger_info`.
+    """
+    from repomatic.github import workflow_sync as ws
+
+    real_get = ws.get_data_content
+
+    def fake_get(name: str) -> str:
+        if name == "release-publish-pypi-job.yaml":
+            return fragment_body
+        return real_get(name)
+
+    monkeypatch.setattr(ws, "get_data_content", fake_get)
+
+
+def test_release_thin_caller_rewrites_drifted_fragment_ref(monkeypatch) -> None:
+    """Render still rewrites the action ref when the fragment carries a stale value.
+
+    The bundled fragment normally tracks :data:`DEFAULT_VERSION` (``@main``
+    during development, ``@vX.Y.Z`` in release wheels). The renderer must
+    rewrite *whatever* ref the fragment happens to carry, not only the
+    in-sync default: a stale leftover from a freeze (or any drift between
+    `__version__` and the fragment content) should still produce the
+    requested target ref, not silently emit the stale value.
+    """
+    _patch_publish_pypi_fragment(
+        monkeypatch,
+        "---\n"
+        "publish-pypi:\n"
+        "  permissions:\n"
+        "    id-token: write\n"
+        "  steps:\n"
+        f"    - uses: {DEFAULT_REPO}/.github/actions/publish-pypi@v6.18.4\n"
+        "      with:\n"
+        "        artifact-name: x\n",
+    )
+
+    content = generate_thin_caller("release.yaml", version="v9.9.9")
+    assert f"{DEFAULT_REPO}/.github/actions/publish-pypi@v9.9.9" in content
+    assert "@v6.18.4" not in content
+
+
+def test_release_thin_caller_unrecognized_fragment_raises(monkeypatch) -> None:
+    """Render fails loudly when the fragment carries no recognizable action ref.
+
+    A fragment whose structure has changed in a way the renderer was not
+    updated to handle must surface as an error, not as a silent no-op that
+    emits a malformed workflow.
+    """
+    _patch_publish_pypi_fragment(
+        monkeypatch,
+        "---\n"
+        "publish-pypi:\n"
+        "  permissions:\n"
+        "    id-token: write\n"
+        "  steps:\n"
+        "    - run: echo no-action-ref-here\n",
+    )
+
+    with pytest.raises(RuntimeError, match="release-publish-pypi-job.yaml"):
+        generate_thin_caller("release.yaml", version="v9.9.9")
 
 
 def test_renovate_passes_secrets_explicitly() -> None:
