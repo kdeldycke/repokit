@@ -121,9 +121,10 @@ def read_pyproject_toml(project_root: Path | None = None) -> dict[str, Any]:
     if not (pyproject_path.exists() and pyproject_path.is_file()):
         return {}
     try:
-        return tomllib.loads(pyproject_path.read_text(encoding="UTF-8"))
+        data: dict[str, Any] = tomllib.loads(pyproject_path.read_text(encoding="UTF-8"))
     except tomllib.TOMLDecodeError:
         return {}
+    return data
 
 
 def is_python_project(
