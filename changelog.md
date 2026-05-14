@@ -9,6 +9,9 @@
 
 ## [`6.18.4` (2026-05-14)](https://github.com/kdeldycke/repomatic/compare/v6.18.3...v6.18.4)
 
+> [!NOTE]
+> `6.18.4` is available on [🐍 PyPI](https://pypi.org/project/repomatic/6.18.4/) and [🐙 GitHub](https://github.com/kdeldycke/repomatic/releases/tag/v6.18.4).
+
 - Replace the `RepoScope.NON_AWESOME` variant with `PYTHON_ONLY`, gating affected components on the presence of a PEP 621 `[project].name` in `pyproject.toml` (detected via the new `repomatic.pyproject.is_python_project` helper). Repos that carry `pyproject.toml` only for `[tool.*]` configuration (like dotfiles) are now classified as non-Python and skip Python-flavored components by default. `RepoScope.matches()` now takes both `is_awesome` and `is_python` traits. Existing entries are reclassified: `codecov`, `publish-pypi-action`, `changelog.yaml`, `debug.yaml`, `release.yaml`, and the generated `changelog.md` move to `PYTHON_ONLY`; `renovate` moves to `ALL` (Renovate is language-agnostic). Explicit CLI naming and `[tool.repomatic] include` continue to bypass scope, so a dotfiles repo can still opt into `publish-pypi-action` if needed.
 - Extend `release_prep.freeze_workflow_urls` and `unfreeze_workflow_urls` to walk non-symlink YAML files under `repomatic/data/` in addition to `.github/workflows/`. The bundled `release-publish-pypi-job.yaml` fragment now participates in the `@main` ↔ `@vX.Y.Z` rewrite, so wheels built from a freeze commit ship with the pinned action ref baked in. Symlinks in the data dir are skipped to avoid double-processing. `repomatic.github.workflow_sync._PUBLISH_PYPI_DEFAULT_ACTION_REF` is now derived from `DEFAULT_VERSION` so the search string always matches the ref in the (possibly frozen) bundled fragment.
 - Bump Biome from `2.4.13` to `2.4.14` and Lychee from `0.24.1` to `0.24.2` in the tool registry.
