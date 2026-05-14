@@ -193,7 +193,7 @@ exclude-newer = "1 week"
 # GitPython 3.1.50 patches CVE-2026-42215 bypass (newline injection in
 # config_writer section parameter): bypass the cooldown to pull the security
 # fix immediately.
-exclude-newer-package = { gitpython = "0 day", nuitka = "0 day", repomatic = "0 day", urllib3 = "0 day" }
+exclude-newer-package = { nuitka = "0 day", repomatic = "0 day" }
 # Package is at root level, not in "./src/".
 build-backend.module-root = ""
 
