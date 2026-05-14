@@ -164,9 +164,7 @@ class ReleasePrep:
         data_dir = repo_root / "repomatic" / "data"
         if not data_dir.exists():
             return []
-        return sorted(
-            path for path in data_dir.glob("*.yaml") if not path.is_symlink()
-        )
+        return sorted(path for path in data_dir.glob("*.yaml") if not path.is_symlink())
 
     def freeze_workflow_urls(self) -> int:
         """Replace workflow URLs from default branch to versioned tag.

@@ -56,7 +56,7 @@ def test_get_project_name_with_preloaded_data():
 def test_is_python_project_true_for_pep621(tmp_path):
     """A PEP 621-compliant `[project]` table qualifies as a Python project."""
     (tmp_path / "pyproject.toml").write_text(
-        "[project]\nname = \"orange-grove\"\nversion = \"0.1.0\"\n",
+        '[project]\nname = "orange-grove"\nversion = "0.1.0"\n',
         encoding="UTF-8",
     )
     assert is_python_project(tmp_path) is True
@@ -77,9 +77,7 @@ def test_is_python_project_false_for_missing_pyproject(tmp_path):
 
 def test_is_python_project_false_for_malformed_toml(tmp_path):
     """A `pyproject.toml` that fails to parse is not a Python project."""
-    (tmp_path / "pyproject.toml").write_text(
-        "not = valid = toml\n", encoding="UTF-8"
-    )
+    (tmp_path / "pyproject.toml").write_text("not = valid = toml\n", encoding="UTF-8")
     assert is_python_project(tmp_path) is False
 
 

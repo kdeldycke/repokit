@@ -528,9 +528,7 @@ def run_init(
         from .metadata import Metadata
 
         repo_slug = Metadata().repo_slug
-    is_awesome = bool(
-        repo_slug and repo_slug.split("/")[-1].startswith("awesome-")
-    )
+    is_awesome = bool(repo_slug and repo_slug.split("/")[-1].startswith("awesome-"))
     is_python = is_python_project(output_dir)
     logging.debug("Repository traits: awesome=%s python=%s", is_awesome, is_python)
     if is_awesome and not components:
