@@ -590,7 +590,9 @@ def test_adds_bumpversion_with_array_sections() -> None:
 def test_returns_none_if_section_exists() -> None:
     """Verify that None is returned if the section already exists."""
     with NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-        f.write('[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.ruff]\npreview = false\n')
+        f.write(
+            '[project]\nname = "test"\nversion = "0.1.0"\n\n[tool.ruff]\npreview = false\n'
+        )
         f.flush()
         path = Path(f.name)
 
@@ -1589,7 +1591,7 @@ def test_include_config_bypasses_scope_exclusion(
     """
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        "[tool.repomatic]\ninclude = [\"codecov\"]\n",
+        '[tool.repomatic]\ninclude = ["codecov"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -1615,7 +1617,7 @@ def test_include_bypasses_scope_for_bundled_component(
     """
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        "[tool.repomatic]\ninclude = [\"codecov\"]\n",
+        '[tool.repomatic]\ninclude = ["codecov"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -1673,8 +1675,7 @@ def test_file_level_include_bypasses_scope(
     """File-level ``include`` entry bypasses scope for that specific file only."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        "[tool.repomatic]\n"
-        'include = ["workflows/changelog.yaml"]\n',
+        '[tool.repomatic]\ninclude = ["workflows/changelog.yaml"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -1807,7 +1808,7 @@ def test_include_config_bypasses_python_only_scope(
     """`[tool.repomatic] include` bypasses `RepoScope.PYTHON_ONLY`."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        "[tool.repomatic]\ninclude = [\"publish-pypi-action\"]\n",
+        '[tool.repomatic]\ninclude = ["publish-pypi-action"]\n',
         encoding="UTF-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -2667,7 +2668,9 @@ def test_init_reports_unmodified_configs(
     from repomatic.tool_runner import get_data_file_path
 
     pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text('[project]\nname = "test"\nversion = "0.1.0"\n', encoding="UTF-8")
+    pyproject.write_text(
+        '[project]\nname = "test"\nversion = "0.1.0"\n', encoding="UTF-8"
+    )
     monkeypatch.chdir(tmp_path)
 
     with get_data_file_path("yamllint.yaml") as bundled:
@@ -2683,7 +2686,9 @@ def test_init_no_unmodified_when_different(
 ):
     """Init does not flag modified config files as unmodified."""
     pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text('[project]\nname = "test"\nversion = "0.1.0"\n', encoding="UTF-8")
+    pyproject.write_text(
+        '[project]\nname = "test"\nversion = "0.1.0"\n', encoding="UTF-8"
+    )
     monkeypatch.chdir(tmp_path)
 
     (tmp_path / ".yamllint.yaml").write_text(
