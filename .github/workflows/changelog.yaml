@@ -137,8 +137,12 @@ jobs:
         if: fromJSON(needs.metadata.outputs.metadata)[format('{0}_bump_allowed', matrix.part)]
         run: uvx --no-progress --from . repomatic run bump-my-version -- bump --verbose ${{ matrix.part }}
       - name: Sync uv.lock
+        # Use `uv lock --upgrade` (not `uv sync`) so the resolution matches the
+        # autofix `sync-uv-lock` job. Plain `uv sync` is conservative and
+        # preserves stale transitive markers, which then oscillate against the
+        # autofix on the next run.
         if: fromJSON(needs.metadata.outputs.metadata)[format('{0}_bump_allowed', matrix.part)]
-        run: uv --no-progress sync
+        run: uv --no-progress lock --upgrade
       - id: pr-metadata
         if: fromJSON(needs.metadata.outputs.metadata)[format('{0}_bump_allowed', matrix.part)]
         run: >
@@ -207,7 +211,9 @@ jobs:
       - name: Version bump
         run: uvx --no-progress --from . repomatic run bump-my-version -- bump --verbose patch
       - name: Sync uv.lock
-        run: uv --no-progress sync
+        # See bump-version job above for why this uses `uv lock --upgrade`
+        # rather than `uv sync`.
+        run: uv --no-progress lock --upgrade
       - name: Create unfreeze commit
         env:
           CURRENT_VERSION: ${{ steps.get_version.outputs.current_version }}

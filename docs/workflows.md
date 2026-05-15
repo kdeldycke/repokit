@@ -221,7 +221,7 @@ GitHub Actions has several design limitations that the workflows work around:
 #### 🆙 Bump version (`bump-version`)
 
 - Creates PRs for minor and major version bumps using [`bump-my-version`](https://github.com/callowayproject/bump-my-version)
-- Syncs `uv.lock` to include the new version in the same commit
+- Runs `uv lock --upgrade` to refresh `uv.lock` in the same commit (matches the [`sync-uv-lock`](#github-workflows-autofix-yaml-jobs) autofix job, so transitive marker drift does not produce a redundant follow-up PR)
 - Uses commit message parsing as fallback when tags aren't available yet
 - **Requires**:
   - `bump-my-version` configuration in `pyproject.toml`

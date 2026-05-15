@@ -6,6 +6,7 @@
 > This version is **not released yet** and is under active development.
 
 - Make `release.yaml` thin-caller generation robust to drift between the bundled `release-publish-pypi-job.yaml` fragment and the in-tree `__version__`: the action-ref substitution now matches the canonical `kdeldycke/repomatic/.github/actions/publish-pypi@<ref>` path via regex instead of the literal `_PUBLISH_PYPI_DEFAULT_ACTION_REF` string, and raises `RuntimeError` when no recognizable ref is found rather than silently emitting whatever ref the fragment happens to carry.
+- Switch the `Sync uv.lock` steps in `changelog.yaml` (`bump-version` and `prepare-release` jobs) from `uv sync` to `uv lock --upgrade`. Plain `uv sync` is conservative and preserves stale transitive markers from the existing lockfile, which the autofix `sync-uv-lock` job (already on `uv lock --upgrade`) then rewrites on the next push: producing a redundant lockfile-only PR after every release bump. Aligning both call sites on `uv lock --upgrade` absorbs any pending transitive refresh into the version-bump commit instead of trailing it.
 
 ## [`6.18.4` (2026-05-14)](https://github.com/kdeldycke/repomatic/compare/v6.18.3...v6.18.4)
 
