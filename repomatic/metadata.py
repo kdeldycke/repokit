@@ -1256,9 +1256,13 @@ class Metadata:
             )
             return True
 
-        if self.event_type == WorkflowEvent.push and self.head_commit_message and any(
-            self.head_commit_message.startswith(prefix)
-            for prefix in MANUAL_VERSION_BUMP_COMMIT_PREFIXES
+        if (
+            self.event_type == WorkflowEvent.push
+            and self.head_commit_message
+            and any(
+                self.head_commit_message.startswith(prefix)
+                for prefix in MANUAL_VERSION_BUMP_COMMIT_PREFIXES
+            )
         ):
             logging.info(
                 "Head commit is a user-initiated version bump "
