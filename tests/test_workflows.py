@@ -24,6 +24,8 @@ from typing import Any
 import pytest
 import yaml
 
+from repomatic.binary import VERSION_BUMP_BRANCHES
+
 # Self-referential URL base for this repository.
 SELF_REF_URL_BASE = "https://raw.githubusercontent.com/kdeldycke/repomatic"
 
@@ -82,6 +84,16 @@ WORKFLOWS_WITH_CONCURRENCY = tuple(
         if p.name not in WORKFLOWS_WITHOUT_CONCURRENCY
     )
 )
+
+# PR-triggered workflows that must filter out automated version-bump
+# branches via `pull_request.branches-ignore`. These workflows are heavy
+# enough that running them on bot-authored drafts whose code is identical
+# to `main` is pure waste.
+WORKFLOWS_IGNORING_VERSION_BUMPS = frozenset((
+    "labels.yaml",
+    "lint.yaml",
+    "tests.yaml",
+))
 
 # Workflows that must use conditional cancel-in-progress (excludes unique
 # group and event-scoped workflows).
@@ -277,6 +289,53 @@ def test_all_workflows_discovered() -> None:
     # Verify no overlap between exempt and concurrency categories.
     overlap = set(WORKFLOWS_WITH_CONCURRENCY) & WORKFLOWS_WITHOUT_CONCURRENCY
     assert not overlap, f"Workflows in both categories: {overlap}"
+
+
+@pytest.mark.parametrize("workflow_name", sorted(WORKFLOWS_IGNORING_VERSION_BUMPS))
+def test_version_bump_branches_ignored(workflow_name: str) -> None:
+    """Heavy PR-triggered workflows must list every VERSION_BUMP_BRANCHES
+    member under `pull_request.branches-ignore`.
+    """
+    workflow = load_workflow(workflow_name)
+    pr_trigger = workflow.get("on", {}).get("pull_request", {})
+    ignored = set(pr_trigger.get("branches-ignore", ()))
+    missing = VERSION_BUMP_BRANCHES - ignored
+    assert not missing, (
+        f"{workflow_name}: pull_request.branches-ignore is missing "
+        f"version-bump branches {sorted(missing)}"
+    )
+
+
+def test_version_bump_branches_match_changelog_workflow() -> None:
+    """VERSION_BUMP_BRANCHES must equal the set of branches actually created
+    by `changelog.yaml`'s `peter-evans/create-pull-request` steps.
+
+    `prepare-release` is hard-coded; the `bump-version` job templates
+    `${{ matrix.part }}-version-increment` over `matrix.part = [major, minor]`,
+    so the full set is `{prepare-release, major-version-increment,
+    minor-version-increment}`.
+    """
+    jobs = load_workflow("changelog.yaml").get("jobs", {})
+    created_branches: set[str] = set()
+    for job_name in ("prepare-release", "bump-version"):
+        job = jobs.get(job_name, {})
+        parts = job.get("strategy", {}).get("matrix", {}).get("part") or [None]
+        for step in job.get("steps", ()):
+            uses = step.get("uses", "")
+            if not uses.startswith("peter-evans/create-pull-request@"):
+                continue
+            branch_template = step.get("with", {}).get("branch", "")
+            for part in parts:
+                if part is None:
+                    created_branches.add(branch_template)
+                else:
+                    created_branches.add(
+                        branch_template.replace("${{ matrix.part }}", part)
+                    )
+    assert created_branches == set(VERSION_BUMP_BRANCHES), (
+        f"changelog.yaml creates {sorted(created_branches)!r} but "
+        f"VERSION_BUMP_BRANCHES is {sorted(VERSION_BUMP_BRANCHES)!r}"
+    )
 
 
 def test_release_commit_prefix_in_changelog_workflow() -> None:

@@ -326,6 +326,7 @@ from .binary import (
     FLAT_BUILD_TARGETS,
     NUITKA_BUILD_TARGETS,
     SKIP_BINARY_BUILD_BRANCHES,
+    VERSION_BUMP_BRANCHES,
 )
 from .changelog import (
     GITHUB_RELEASE_URL,
@@ -386,6 +387,11 @@ class Dialect(StrEnum):
 
 _METADATA_KEY_DESCRIPTIONS: Final[dict[str, str]] = {
     "is_bot": "Workflow was triggered by a bot or automated process.",
+    "is_version_bump_branch": (
+        "PR head branch is one of the automated version-bump branches "
+        "(`prepare-release`, `major-version-increment`, "
+        "`minor-version-increment`)."
+    ),
     "skip_binary_build": "Binary builds should be skipped for this event.",
     "new_commits": "Hashes of new commits in the push event.",
     "release_commits": "Hashes of release commits in the push event.",
@@ -1114,6 +1120,18 @@ class Metadata:
             top_package = module_id.split(".")[0]
             source_dirs.add(f"{top_package}/")
         return BINARY_AFFECTING_PATHS + tuple(sorted(source_dirs))
+
+    @cached_property
+    def is_version_bump_branch(self) -> bool:
+        """Returns `True` if the PR head branch is one of the
+        {data}`~repomatic.binary.VERSION_BUMP_BRANCHES` members.
+
+        Used by workflow YAML conditions to gate jobs that should not run on
+        automated version-bump PRs whose working tree is identical to `main`
+        except for version strings and `uv.lock`. Always `False` for push,
+        schedule, and `workflow_dispatch` events (which carry no head branch).
+        """
+        return bool(self.head_branch and self.head_branch in VERSION_BUMP_BRANCHES)
 
     @cached_property
     def skip_binary_build(self) -> bool:
@@ -2313,6 +2331,7 @@ class Metadata:
         # the pydriller ``Repository(...)`` walk it pulls in.
         factories: dict[str, Callable[[], Any]] = {
             "is_bot": lambda: self.is_bot,
+            "is_version_bump_branch": lambda: self.is_version_bump_branch,
             "skip_binary_build": lambda: self.skip_binary_build,
             "new_commits": lambda: self.new_commits_hash,
             "release_commits": lambda: self.release_commits_hash,

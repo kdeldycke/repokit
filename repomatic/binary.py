@@ -134,16 +134,44 @@ SKIP_BINARY_BUILD_BRANCHES: Final[frozenset[str]] = frozenset((
     "sync-mailmap",
     "update-deps-graph",
 ))
-"""Branch names for which binary builds should be skipped.
+"""Autofix branches whose changes cannot affect compiled binaries.
 
-These branches contain changes that do not affect compiled binaries:
+Members are PR branch names produced by autofix jobs that touch only
+repository housekeeping (`.mailmap`, `.gitignore`, JSON, Markdown,
+images, shell scripts, dependency graph). The binary output is
+unchanged, so {attr}`~repomatic.metadata.Metadata.skip_binary_build`
+returns `True` when the PR head branch matches a member, saving an
+expensive Nuitka compilation.
 
-- `.mailmap` updates only affect contributor attribution
-- Documentation and image changes don't affect code
-- `.gitignore` and JSON config changes don't affect binaries
+```{note}
+This set is intentionally disjoint from {data}`VERSION_BUMP_BRANCHES`:
+version-bump branches do change binaries (they rewrite the version
+string baked into the build), so they belong to a different policy.
+```
+"""
 
-This allows workflows to skip expensive Nuitka compilation jobs for PRs that cannot
-possibly change the binary output.
+
+VERSION_BUMP_BRANCHES: Final[frozenset[str]] = frozenset((
+    "major-version-increment",
+    "minor-version-increment",
+    "prepare-release",
+))
+"""PR branches that carry only automated version-bump and lockfile churn.
+
+Members are bot-authored draft PRs created by the `bump-version` and
+`prepare-release` jobs in `changelog.yaml`. Their working tree is
+byte-identical to `main` except for the version string in
+`pyproject.toml`, `**/__init__.py`, `changelog.md`, `citation.cff`,
+and `uv.lock`. Heavy PR-time workflows (`tests.yaml`, `lint.yaml`,
+`labels.yaml`) list these branches under `pull_request.branches-ignore`
+so the matrix doesn't burn CI minutes for a guaranteed-passing run.
+
+```{note}
+These branches are *not* binary-neutral: the rewritten version string
+is baked into the Nuitka binary, so they are deliberately absent from
+{data}`SKIP_BINARY_BUILD_BRANCHES`. Post-merge release artifacts on
+`main` are still produced.
+```
 """
 
 # Map each target to their exiftool architecture strings.

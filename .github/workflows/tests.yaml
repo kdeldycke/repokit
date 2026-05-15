@@ -115,12 +115,12 @@ jobs:
           --override-ini=junit_family=legacy
 
       - name: Upload coverage to Codecov
-        # Skip on prepare-release PRs (Codecov cannot create commits on protected
-        # branches), sync-repomatic PRs (data-only changes with no coverable
-        # lines), and fork PRs (secrets are not available).
+        # Skip on sync-repomatic PRs (data-only changes with no coverable
+        # lines) and fork PRs (secrets are not available). The version-bump
+        # PR family (prepare-release, *-version-increment) is already filtered
+        # at the workflow trigger level via pull_request.branches-ignore.
         if: >
-          github.head_ref != 'prepare-release'
-          && github.head_ref != 'sync-repomatic'
+          github.head_ref != 'sync-repomatic'
           && env.CODECOV_TOKEN != ''
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -134,8 +134,7 @@ jobs:
           --token "${CODECOV_TOKEN}"
       - name: Upload test results to Codecov
         if: >
-          github.head_ref != 'prepare-release'
-          && github.head_ref != 'sync-repomatic'
+          github.head_ref != 'sync-repomatic'
           && env.CODECOV_TOKEN != ''
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

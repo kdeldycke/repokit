@@ -394,6 +394,9 @@ def iter_checks(metadata: Any, expected: Any, context: Any) -> None:
 
 expected: dict[str, Any] = {
     "is_bot": AnyBool(),
+    # is_version_bump_branch is True when GITHUB_HEAD_REF matches one of the
+    # automated version-bump branch names; False outside that context.
+    "is_version_bump_branch": AnyBool(),
     # skip_binary_build depends on the event type and changed files. In CI push events
     # where only non-binary-affecting files changed, it is True.
     "skip_binary_build": AnyBool(),

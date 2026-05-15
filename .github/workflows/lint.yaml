@@ -31,8 +31,6 @@ jobs:
 
   metadata:
     name: 🧬 Project metadata
-    # All jobs depending on metadata in this workflow are skipped on prepare-release branch.
-    if: github.head_ref != 'prepare-release'
     runs-on: ubuntu-slim
     outputs:
       metadata: ${{ steps.metadata.outputs.metadata }}
@@ -40,17 +38,21 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: astral-sh/setup-uv@6ee6290f1cbc4156c0bdd66691b2c144ef8df19a # v7.4.0
       - name: Run repomatic metadata
+        # is_version_bump_branch lets every dependent job below skip uniformly
+        # for prepare-release and *-version-increment PRs (including downstream
+        # workflow_call invocations that bypass branches-ignore filters).
         id: metadata
         run: >
           uvx --no-progress --from . repomatic metadata
           --format github-json --output "$GITHUB_OUTPUT"
-          is_bot python_files yaml_files workflow_files zsh_files
-          is_python_project
+          is_bot is_version_bump_branch python_files yaml_files
+          workflow_files zsh_files is_python_project
 
   lint-repo:
     name: 🏠 Lint repo
     needs:
       - metadata
+    if: ${{ !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch }}
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -66,8 +68,11 @@ jobs:
     name: 🛡️ Lint types
     needs:
       - metadata
-    # Skip linting on prepare-release branch as it points to a tagged URL that does not exist yet.
-    if: github.head_ref != 'prepare-release' && fromJSON(needs.metadata.outputs.metadata).python_files
+    # Skip on version-bump PRs (frozen URLs, no code change) and when no
+    # Python files are present.
+    if: >
+      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
+      && fromJSON(needs.metadata.outputs.metadata).python_files
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -87,10 +92,10 @@ jobs:
     name: 📄 Lint YAML
     needs:
       - metadata
-    # Skip linting on prepare-release branch as it points to a tagged URL that does not exist yet.
-    # Also skip dependency update PRs which do not heavily alter YAML files.
+    # Skip on version-bump PRs (frozen URLs, no code change) and dependency
+    # update PRs (do not heavily alter YAML files).
     if: >
-      github.head_ref != 'prepare-release'
+      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
       && (! fromJSON(needs.metadata.outputs.metadata).is_bot)
       && fromJSON(needs.metadata.outputs.metadata).yaml_files
     runs-on: ubuntu-slim
@@ -104,9 +109,9 @@ jobs:
     name: 🐚 Lint Zsh
     needs:
       - metadata
-    # Skip linting on prepare-release branch and bots PRs because they do not alter Zsh files.
+    # Skip on version-bump PRs and bot PRs (neither alters Zsh files).
     if: >
-      github.head_ref != 'prepare-release'
+      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
       && (! fromJSON(needs.metadata.outputs.metadata).is_bot)
       && fromJSON(needs.metadata.outputs.metadata).zsh_files
     runs-on: ubuntu-slim
@@ -125,9 +130,10 @@ jobs:
     name: ⚡ Lint GitHub Actions
     needs:
       - metadata
-    # Skip linting on prepare-release branch and dependency update PRs because they do not heavily alter GitHub Actions.
+    # Skip on version-bump PRs and dependency update PRs (neither heavily
+    # alters GitHub Actions).
     if: >
-      github.head_ref != 'prepare-release'
+      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
       && (! fromJSON(needs.metadata.outputs.metadata).is_bot)
       && fromJSON(needs.metadata.outputs.metadata).workflow_files
     runs-on: ubuntu-slim
@@ -155,9 +161,10 @@ jobs:
     name: 🔒 Lint workflow security
     needs:
       - metadata
-    # Skip linting on prepare-release branch and dependency update PRs because they do not heavily alter GitHub Actions.
+    # Skip on version-bump PRs and dependency update PRs (neither heavily
+    # alters GitHub Actions).
     if: >
-      github.head_ref != 'prepare-release'
+      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
       && (! fromJSON(needs.metadata.outputs.metadata).is_bot)
       && fromJSON(needs.metadata.outputs.metadata).workflow_files
     runs-on: ubuntu-slim
@@ -169,11 +176,13 @@ jobs:
 
   lint-awesome:
     name: 🌟 Lint awesome
-    # Skip linting on prepare-release branch to align the condition with other jobs, even if it does not really matter
-    # here as "awesome-*" repositories don't trigger the release workflow.
+    needs:
+      - metadata
+    # Skip on version-bump PRs to align with the rest of the workflow, even
+    # though "awesome-*" repositories don't trigger the release workflow.
     if: >
       startsWith(github.event.repository.name, 'awesome-')
-      && github.head_ref != 'prepare-release'
+      && !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -191,8 +200,10 @@ jobs:
     name: 🔐 Lint secrets
     needs:
       - metadata
-    # Skip secret checks on prepare-release branch and dependency update PRs.
-    if: github.head_ref != 'prepare-release' && ! fromJSON(needs.metadata.outputs.metadata).is_bot
+    # Skip on version-bump PRs and dependency update PRs.
+    if: >
+      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
+      && ! fromJSON(needs.metadata.outputs.metadata).is_bot
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

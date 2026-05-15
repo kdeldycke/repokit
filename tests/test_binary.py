@@ -28,6 +28,7 @@ from repomatic.binary import (
     BINARY_ARCH_MAPPINGS,
     NUITKA_BUILD_TARGETS,
     SKIP_BINARY_BUILD_BRANCHES,
+    VERSION_BUMP_BRANCHES,
     run_exiftool,
     verify_binary_arch,
 )
@@ -181,8 +182,14 @@ def test_skip_binary_build_branches_constant():
     assert "sync-gitignore" in SKIP_BINARY_BUILD_BRANCHES
     # Verify branches that affect code are NOT in the list.
     assert "format-python" not in SKIP_BINARY_BUILD_BRANCHES
-    assert "prepare-release" not in SKIP_BINARY_BUILD_BRANCHES
     assert "main" not in SKIP_BINARY_BUILD_BRANCHES
+
+
+def test_skip_binary_build_disjoint_from_version_bumps():
+    """Version-bump branches rewrite the version string baked into the
+    Nuitka binary, so they must not appear in SKIP_BINARY_BUILD_BRANCHES.
+    """
+    assert SKIP_BINARY_BUILD_BRANCHES.isdisjoint(VERSION_BUMP_BRANCHES)
 
 
 def test_skip_binary_build_property_is_bool():

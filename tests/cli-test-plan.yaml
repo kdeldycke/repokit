@@ -55,6 +55,7 @@
     - "is_sphinx=true"
   stdout_regex_matches:
     - "is_bot=(true|false)"
+    - "is_version_bump_branch=(true|false)"
     - "skip_binary_build=(true|false)"
     - "new_commits=([a-f0-9]+)?"
     - "release_commits=([a-f0-9]+)?"
