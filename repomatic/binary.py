@@ -174,6 +174,37 @@ is baked into the Nuitka binary, so they are deliberately absent from
 ```
 """
 
+
+VERSION_BUMP_COMMIT_PREFIXES: Final[frozenset[str]] = frozenset((
+    "Bump major version to ",
+    "Bump minor version to ",
+    "[changelog] Post-release bump ",
+))
+"""Head-commit-message prefixes that mark a version-bump push to `main`.
+
+After {data}`VERSION_BUMP_BRANCHES` PRs merge, the resulting commits
+land on `main` and re-trigger every push-driven workflow. The branch
+filter no longer applies (the head ref is `main`), but the commit
+messages are stable identifiers:
+
+- `Bump (major|minor) version to ` — from `bump-version` PR merges
+- `[changelog] Post-release bump ` — from `prepare-release` PR merges
+
+Workflows that share the metadata-gate pattern with
+{data}`VERSION_BUMP_BRANCHES` extend their gate with a
+`startsWith(github.event.head_commit.message, ...)` check against each
+prefix, so the metadata pre-job and all `needs: metadata` jobs skip.
+
+```{note}
+`tests.yaml` intentionally excludes `[changelog] Post-release bump `
+from this filter: the post-release bump is the only post-merge test
+point for the release commit's frozen state, and `prepare-release`
+PRs are not tested directly. Dropping that signal would let a
+lockfile-induced regression from `prepare-release`'s `uv lock --upgrade`
+land on `main` untested.
+```
+"""
+
 # Map each target to their exiftool architecture strings.
 # Ubuntu:
 #   CPU Type      : Arm 64-bits (Armv8/AArch64)

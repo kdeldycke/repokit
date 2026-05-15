@@ -25,7 +25,7 @@ from typing import Any
 import pytest
 import yaml
 
-from repomatic.binary import VERSION_BUMP_BRANCHES
+from repomatic.binary import VERSION_BUMP_BRANCHES, VERSION_BUMP_COMMIT_PREFIXES
 
 # Self-referential URL base for this repository.
 SELF_REF_URL_BASE = "https://raw.githubusercontent.com/kdeldycke/repomatic"
@@ -42,9 +42,6 @@ RELEASE_COMMIT_PREFIX = f"{CHANGELOG_COMMIT_PREFIX} Release"
 
 # Commit message prefix for post-release version bump.
 POST_RELEASE_COMMIT_PREFIX = f"{CHANGELOG_COMMIT_PREFIX} Post-release bump"
-
-# Commit message prefix for version bump PRs.
-VERSION_BUMP_COMMIT_PREFIX = f"{CHANGELOG_COMMIT_PREFIX} Bump"
 
 # Root of the repository.
 REPO_ROOT = Path(__file__).parent.parent
@@ -333,6 +330,26 @@ def test_metadata_gate_skips_version_bump_branches(workflow_name: str) -> None:
     assert gated_branches == set(VERSION_BUMP_BRANCHES), (
         f"{workflow_name}: metadata.if gates {sorted(gated_branches)!r} "
         f"but VERSION_BUMP_BRANCHES is {sorted(VERSION_BUMP_BRANCHES)!r}"
+    )
+
+
+@pytest.mark.parametrize("workflow_name", sorted(WORKFLOWS_WITH_METADATA_GATE))
+def test_metadata_gate_skips_version_bump_commits(workflow_name: str) -> None:
+    """The `metadata` job's `if:` expression must short-circuit on every
+    VERSION_BUMP_COMMIT_PREFIXES member via a `startsWith(github.event.head_commit.message, ...)`
+    clause, so post-merge `push` events with bot-authored version-bump
+    commit messages skip the entire job graph.
+    """
+    jobs = load_workflow(workflow_name).get("jobs", {})
+    if_expr = jobs.get("metadata", {}).get("if", "")
+    pattern = re.compile(
+        r"startsWith\(github\.event\.head_commit\.message[^,]*,\s*'([^']+)'\)"
+    )
+    gated_prefixes = set(pattern.findall(if_expr))
+    assert gated_prefixes == set(VERSION_BUMP_COMMIT_PREFIXES), (
+        f"{workflow_name}: metadata.if gates commit prefixes "
+        f"{sorted(gated_prefixes)!r} but VERSION_BUMP_COMMIT_PREFIXES is "
+        f"{sorted(VERSION_BUMP_COMMIT_PREFIXES)!r}"
     )
 
 
