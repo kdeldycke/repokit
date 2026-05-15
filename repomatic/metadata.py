@@ -324,9 +324,11 @@ from wcmatch.glob import (
 from .binary import (
     BINARY_AFFECTING_PATHS,
     FLAT_BUILD_TARGETS,
+    MANUAL_VERSION_BUMP_COMMIT_PREFIXES,
     NUITKA_BUILD_TARGETS,
     SKIP_BINARY_BUILD_BRANCHES,
     VERSION_BUMP_BRANCHES,
+    VERSION_BUMP_COMMIT_PREFIXES,
 )
 from .changelog import (
     GITHUB_RELEASE_URL,
@@ -392,7 +394,20 @@ _METADATA_KEY_DESCRIPTIONS: Final[dict[str, str]] = {
         "(`prepare-release`, `major-version-increment`, "
         "`minor-version-increment`)."
     ),
+    "is_version_bump_commit": (
+        "Push event's head commit message starts with one of the "
+        "automated version-bump prefixes."
+    ),
+    "is_version_bump_event": (
+        "Workflow run is either a version-bump PR or a push carrying a "
+        "version-bump head commit."
+    ),
     "skip_binary_build": "Binary builds should be skipped for this event.",
+    "yaml_changed": "Current event's commit range touches at least one YAML file.",
+    "zsh_changed": "Current event's commit range touches at least one Zsh file.",
+    "workflows_changed": (
+        "Current event's commit range touches at least one GitHub workflow file."
+    ),
     "new_commits": "Hashes of new commits in the push event.",
     "release_commits": "Hashes of release commits in the push event.",
     "mailmap_exists": "Whether a .mailmap file exists in the repository.",
@@ -1134,6 +1149,82 @@ class Metadata:
         return bool(self.head_branch and self.head_branch in VERSION_BUMP_BRANCHES)
 
     @cached_property
+    def head_commit_message(self) -> str:
+        """Returns `github.event.head_commit.message` from the event payload.
+
+        Set for `push` events. Empty string for events that do not carry a
+        head commit (`pull_request`, `schedule`, `workflow_dispatch`).
+        """
+        head_commit = self.github_event.get("head_commit") or {}
+        return head_commit.get("message") or ""
+
+    @cached_property
+    def is_version_bump_commit(self) -> bool:
+        """Returns `True` if the head commit message matches any
+        {data}`~repomatic.binary.VERSION_BUMP_COMMIT_PREFIXES` member.
+
+        Detects the post-merge side of a version-bump PR: the commit
+        landing on `main` from `bump-version` or `prepare-release` PR
+        merges. Always `False` for events without a head commit.
+        """
+        msg = self.head_commit_message
+        return bool(msg) and any(
+            msg.startswith(prefix) for prefix in VERSION_BUMP_COMMIT_PREFIXES
+        )
+
+    @cached_property
+    def is_version_bump_event(self) -> bool:
+        """Returns `True` when *either* the head branch or the head commit
+        identifies this run as a version-bump operation.
+
+        Composite of {attr}`is_version_bump_branch` (PR side) and
+        {attr}`is_version_bump_commit` (push side). Single field that
+        downstream consumers can read without knowing which event type
+        the workflow was triggered from.
+        """
+        return self.is_version_bump_branch or self.is_version_bump_commit
+
+    @cached_property
+    def yaml_changed(self) -> bool:
+        """Returns `True` when the current event's commit range touches at
+        least one YAML file.
+
+        Lets per-job lint gates short-circuit on pushes / PRs that don't
+        touch YAML. Falls back to "repo contains any YAML file" when the
+        commit range is unavailable (`workflow_dispatch`), preserving the
+        existing behavior of those manual runs.
+        """
+        if self.changed_files is None:
+            return bool(self.yaml_files)
+        return any(f.endswith((".yaml", ".yml")) for f in self.changed_files)
+
+    @cached_property
+    def zsh_changed(self) -> bool:
+        """Returns `True` when the current event's commit range touches at
+        least one Zsh file.
+
+        Falls back to "repo contains any Zsh file" when the commit range
+        is unavailable.
+        """
+        if self.changed_files is None:
+            return bool(self.zsh_files)
+        zsh_set = set(self.zsh_files)
+        return any(f in zsh_set for f in self.changed_files)
+
+    @cached_property
+    def workflows_changed(self) -> bool:
+        """Returns `True` when the current event's commit range touches at
+        least one GitHub workflow file.
+
+        Falls back to "repo contains any workflow file" when the commit
+        range is unavailable.
+        """
+        if self.changed_files is None:
+            return bool(self.workflow_files)
+        wf_set = set(self.workflow_files)
+        return any(f in wf_set for f in self.changed_files)
+
+    @cached_property
     def skip_binary_build(self) -> bool:
         """Returns `True` if binary builds should be skipped for this event.
 
@@ -1141,17 +1232,37 @@ class Metadata:
         contexts where the changes cannot possibly affect compiled binaries,
         allowing workflows to skip Nuitka compilation jobs.
 
-        Two mechanisms are checked:
+        Three mechanisms are checked:
 
         1. **Branch name** — PRs from known non-code branches (documentation,
            `.mailmap`, `.gitignore`, etc.) are skipped.
-        2. **Changed files** — Push events where all changed files fall outside
+        2. **Version-bump commit** — Push events whose head commit is a
+           user-initiated version bump (`Bump (major|minor) version to `)
+           are skipped: the bump merge changes only version strings and
+           `uv.lock`, so the new binary differs from the previous one only
+           in the baked-in version string. The
+           `[changelog] Post-release bump ` prefix is deliberately *not*
+           checked here: the `prepare-release` merge bundles the release
+           commit with the post-release-bump commit, and the release
+           commit must still produce its binary.
+        3. **Changed files** — Push events where all changed files fall outside
            {attr}`binary_affecting_paths` are skipped. This avoids ~2h of Nuitka
            builds for documentation-only commits to `main`.
         """
         if self.head_branch and self.head_branch in SKIP_BINARY_BUILD_BRANCHES:
             logging.info(
                 f"Branch {self.head_branch!r} is in SKIP_BINARY_BUILD_BRANCHES. "
+                "Binary build will be skipped."
+            )
+            return True
+
+        if self.event_type == WorkflowEvent.push and self.head_commit_message and any(
+            self.head_commit_message.startswith(prefix)
+            for prefix in MANUAL_VERSION_BUMP_COMMIT_PREFIXES
+        ):
+            logging.info(
+                "Head commit is a user-initiated version bump "
+                f"({self.head_commit_message.splitlines()[0]!r}). "
                 "Binary build will be skipped."
             )
             return True
@@ -2332,7 +2443,12 @@ class Metadata:
         factories: dict[str, Callable[[], Any]] = {
             "is_bot": lambda: self.is_bot,
             "is_version_bump_branch": lambda: self.is_version_bump_branch,
+            "is_version_bump_commit": lambda: self.is_version_bump_commit,
+            "is_version_bump_event": lambda: self.is_version_bump_event,
             "skip_binary_build": lambda: self.skip_binary_build,
+            "yaml_changed": lambda: self.yaml_changed,
+            "zsh_changed": lambda: self.zsh_changed,
+            "workflows_changed": lambda: self.workflows_changed,
             "new_commits": lambda: self.new_commits_hash,
             "release_commits": lambda: self.release_commits_hash,
             "mailmap_exists": lambda: self.mailmap_exists,

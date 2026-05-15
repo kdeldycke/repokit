@@ -25,7 +25,11 @@ from typing import Any
 import pytest
 import yaml
 
-from repomatic.binary import VERSION_BUMP_BRANCHES, VERSION_BUMP_COMMIT_PREFIXES
+from repomatic.binary import (
+    MANUAL_VERSION_BUMP_COMMIT_PREFIXES,
+    VERSION_BUMP_BRANCHES,
+    VERSION_BUMP_COMMIT_PREFIXES,
+)
 
 # Self-referential URL base for this repository.
 SELF_REF_URL_BASE = "https://raw.githubusercontent.com/kdeldycke/repomatic"
@@ -330,6 +334,31 @@ def test_metadata_gate_skips_version_bump_branches(workflow_name: str) -> None:
     assert gated_branches == set(VERSION_BUMP_BRANCHES), (
         f"{workflow_name}: metadata.if gates {sorted(gated_branches)!r} "
         f"but VERSION_BUMP_BRANCHES is {sorted(VERSION_BUMP_BRANCHES)!r}"
+    )
+
+
+def test_tests_metadata_gate_skips_manual_bumps() -> None:
+    """`tests.yaml`'s `metadata` job must short-circuit on every
+    MANUAL_VERSION_BUMP_COMMIT_PREFIXES member, but must *not* gate on the
+    `[changelog] Post-release bump ` prefix: that push carries the release
+    commit, and the post-release-bump commit is the only post-merge test
+    point for the release-frozen tree.
+    """
+    jobs = load_workflow("tests.yaml").get("jobs", {})
+    if_expr = jobs.get("metadata", {}).get("if", "")
+    pattern = re.compile(
+        r"startsWith\(github\.event\.head_commit\.message[^,]*,\s*'([^']+)'\)"
+    )
+    gated_prefixes = set(pattern.findall(if_expr))
+    assert gated_prefixes == set(MANUAL_VERSION_BUMP_COMMIT_PREFIXES), (
+        f"tests.yaml: metadata.if gates commit prefixes {sorted(gated_prefixes)!r} "
+        f"but MANUAL_VERSION_BUMP_COMMIT_PREFIXES is "
+        f"{sorted(MANUAL_VERSION_BUMP_COMMIT_PREFIXES)!r}"
+    )
+    assert "[changelog] Post-release bump " not in gated_prefixes, (
+        "tests.yaml must not gate on '[changelog] Post-release bump ': "
+        "the post-release bump push also carries the release commit, "
+        "and that's the only post-merge test of release-frozen state."
     )
 
 

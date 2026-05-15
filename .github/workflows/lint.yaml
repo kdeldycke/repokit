@@ -11,6 +11,19 @@ name: 🧹 Lint
   push:
     branches:
       - main
+    # Skip push events that only touch files no lint job inspects.
+    # Per-job `*_changed` gates already prevent each linter from running
+    # for unrelated changes; this filter additionally prevents the
+    # workflow run entry from being scheduled at all when the entire
+    # push is irrelevant. Keep this list strict: any file type any lint
+    # job consumes must NOT appear here.
+    paths-ignore:
+      - "**/*.gif"
+      - "**/*.jpeg"
+      - "**/*.jpg"
+      - "**/*.png"
+      - "**/*.svg"
+      - "**/*.webp"
   pull_request:
     branches-ignore:
       # Skip on automated version-bump PRs: their content is identical to main
@@ -54,8 +67,9 @@ jobs:
         run: >
           uvx --no-progress --from . repomatic metadata
           --format github-json --output "$GITHUB_OUTPUT"
-          is_bot python_files yaml_files workflow_files zsh_files
-          is_python_project
+          is_bot is_python_project python_files
+          yaml_changed zsh_changed zsh_files
+          workflows_changed
 
   lint-repo:
     name: 🏠 Lint repo
@@ -98,10 +112,11 @@ jobs:
     name: 📄 Lint YAML
     needs:
       - metadata
-    # Skip dependency update PRs (do not heavily alter YAML files).
+    # Skip when this event didn't touch any YAML file, and on bot PRs
+    # (which don't heavily alter YAML).
     if: >
       (! fromJSON(needs.metadata.outputs.metadata).is_bot)
-      && fromJSON(needs.metadata.outputs.metadata).yaml_files
+      && fromJSON(needs.metadata.outputs.metadata).yaml_changed
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -113,10 +128,10 @@ jobs:
     name: 🐚 Lint Zsh
     needs:
       - metadata
-    # Skip bot PRs (do not alter Zsh files).
+    # Skip when this event didn't touch any Zsh file, and on bot PRs.
     if: >
       (! fromJSON(needs.metadata.outputs.metadata).is_bot)
-      && fromJSON(needs.metadata.outputs.metadata).zsh_files
+      && fromJSON(needs.metadata.outputs.metadata).zsh_changed
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -133,10 +148,11 @@ jobs:
     name: ⚡ Lint GitHub Actions
     needs:
       - metadata
-    # Skip dependency update PRs (do not heavily alter GitHub Actions).
+    # Skip when this event didn't touch any workflow file, and on
+    # dependency update PRs (which don't heavily alter workflows).
     if: >
       (! fromJSON(needs.metadata.outputs.metadata).is_bot)
-      && fromJSON(needs.metadata.outputs.metadata).workflow_files
+      && fromJSON(needs.metadata.outputs.metadata).workflows_changed
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -162,10 +178,10 @@ jobs:
     name: 🔒 Lint workflow security
     needs:
       - metadata
-    # Skip dependency update PRs (do not heavily alter GitHub Actions).
+    # Skip when this event didn't touch any workflow file, and on bot PRs.
     if: >
       (! fromJSON(needs.metadata.outputs.metadata).is_bot)
-      && fromJSON(needs.metadata.outputs.metadata).workflow_files
+      && fromJSON(needs.metadata.outputs.metadata).workflows_changed
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

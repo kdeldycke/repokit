@@ -56,7 +56,12 @@
   stdout_regex_matches:
     - "is_bot=(true|false)"
     - "is_version_bump_branch=(true|false)"
+    - "is_version_bump_commit=(true|false)"
+    - "is_version_bump_event=(true|false)"
     - "skip_binary_build=(true|false)"
+    - "yaml_changed=(true|false)"
+    - "zsh_changed=(true|false)"
+    - "workflows_changed=(true|false)"
     - "new_commits=([a-f0-9]+)?"
     - "release_commits=([a-f0-9]+)?"
     - 'python_files="[\S ]+"'

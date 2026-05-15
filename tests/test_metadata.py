@@ -397,9 +397,18 @@ expected: dict[str, Any] = {
     # is_version_bump_branch is True when GITHUB_HEAD_REF matches one of the
     # automated version-bump branch names; False outside that context.
     "is_version_bump_branch": AnyBool(),
+    # is_version_bump_commit is True when the push event's head_commit message
+    # matches one of the automated version-bump prefixes; False otherwise.
+    "is_version_bump_commit": AnyBool(),
+    # is_version_bump_event is the disjunction of the two flags above.
+    "is_version_bump_event": AnyBool(),
     # skip_binary_build depends on the event type and changed files. In CI push events
     # where only non-binary-affecting files changed, it is True.
     "skip_binary_build": AnyBool(),
+    # *_changed booleans depend on the current event's commit range.
+    "yaml_changed": AnyBool(),
+    "zsh_changed": AnyBool(),
+    "workflows_changed": AnyBool(),
     # new_commits is None when running outside GitHub Actions (no event data).
     # In CI, it contains commit SHAs extracted from the push event payload.
     "new_commits": OptionalList(regex(r"[a-f0-9]{40}")),

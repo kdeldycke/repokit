@@ -40,6 +40,17 @@ jobs:
 
   metadata:
     name: 🧬 Project metadata
+    # Skipping this job propagates to every `needs: metadata` job below.
+    # The `[changelog] Post-release bump ` prefix is intentionally *not*
+    # in this list: that push also carries the release commit, and the
+    # post-release-bump head commit is our only post-merge test of the
+    # release-frozen tree (the `prepare-release` PR is filtered out at
+    # the trigger level by `branches-ignore`). The branch list mirrors
+    # MANUAL_VERSION_BUMP_COMMIT_PREFIXES and is pinned by
+    # tests/test_workflows.py::test_tests_metadata_gate_skips_manual_bumps.
+    if: >
+      !startsWith(github.event.head_commit.message || '', 'Bump major version to ')
+      && !startsWith(github.event.head_commit.message || '', 'Bump minor version to ')
     runs-on: ubuntu-slim
     outputs:
       metadata: ${{ steps.metadata.outputs.metadata }}

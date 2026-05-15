@@ -6,6 +6,19 @@ name: 📚 Docs
   push:
     branches:
       - main
+    # Only rebuild docs when something the docs actually depend on changes:
+    # Sphinx sources, Python (autodoc), pyproject (project metadata + docs
+    # group deps), `uv.lock` (resolved env), the docs workflow itself, and
+    # the top-level Markdown / data files that the docs include or link to.
+    paths:
+      - .github/workflows/docs.yaml
+      - changelog.md
+      - citation.cff
+      - docs/**
+      - pyproject.toml
+      - readme.md
+      - uv.lock
+      - "**/*.py"
 
 permissions: {}
 
