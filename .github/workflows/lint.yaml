@@ -13,6 +13,11 @@ name: 🧹 Lint
       - main
   pull_request:
     branches-ignore:
+      # Skip on automated version-bump PRs: their content is identical to main
+      # (only version strings and uv.lock change), so the lint matrix would burn
+      # CI minutes for no signal.
+      - major-version-increment
+      - minor-version-increment
       - prepare-release
       - renovate/**
 

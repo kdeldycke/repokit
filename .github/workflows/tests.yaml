@@ -13,6 +13,12 @@ name: 🔬 Tests
       - .github/workflows/tests.yaml
   pull_request:
     branches-ignore:
+      # Skip on automated version-bump PRs: their content is identical to main
+      # (only version strings and uv.lock change), so the test matrix would burn
+      # CI minutes for no signal. Lockfile-induced regressions are independently
+      # caught by sync-uv-lock autofix PRs against main.
+      - major-version-increment
+      - minor-version-increment
       - prepare-release
     paths:
       - repomatic/**

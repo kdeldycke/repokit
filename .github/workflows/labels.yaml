@@ -9,6 +9,10 @@ name: 🏷️ Labels
   # Trigger labellers and sponsor tagger on PR open only to avoid excessive runs.
   pull_request:
     branches-ignore:
+      # Skip on automated version-bump PRs: labels add no value on bot-authored,
+      # immediately-merged drafts whose content is identical to main.
+      - major-version-increment
+      - minor-version-increment
       - prepare-release
       - renovate/**
     types: [opened]
