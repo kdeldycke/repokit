@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -93,6 +94,15 @@ WORKFLOWS_IGNORING_VERSION_BUMPS = frozenset((
     "labels.yaml",
     "lint.yaml",
     "tests.yaml",
+))
+
+# Workflows whose `metadata` pre-job gates downstream jobs by skipping
+# itself on version-bump head refs. `tests.yaml` is exempt: it does not
+# accept `workflow_call`, so branches-ignore on its `pull_request` trigger
+# is the only entry point and the metadata job can always run.
+WORKFLOWS_WITH_METADATA_GATE = frozenset((
+    "labels.yaml",
+    "lint.yaml",
 ))
 
 # Workflows that must use conditional cancel-in-progress (excludes unique
@@ -303,6 +313,26 @@ def test_version_bump_branches_ignored(workflow_name: str) -> None:
     assert not missing, (
         f"{workflow_name}: pull_request.branches-ignore is missing "
         f"version-bump branches {sorted(missing)}"
+    )
+
+
+@pytest.mark.parametrize("workflow_name", sorted(WORKFLOWS_WITH_METADATA_GATE))
+def test_metadata_gate_skips_version_bump_branches(workflow_name: str) -> None:
+    """The `metadata` job's `if:` expression must encode the same set of
+    branch names as VERSION_BUMP_BRANCHES via a `contains(fromJSON(...))`
+    check on `github.head_ref`.
+    """
+    jobs = load_workflow(workflow_name).get("jobs", {})
+    if_expr = jobs.get("metadata", {}).get("if", "")
+    match = re.search(r"fromJSON\('(\[[^']*\])'\)", if_expr)
+    assert match, (
+        f"{workflow_name}: metadata.if must use "
+        f"`!contains(fromJSON('[...]'), github.head_ref)`. Got: {if_expr!r}"
+    )
+    gated_branches = set(json.loads(match.group(1)))
+    assert gated_branches == set(VERSION_BUMP_BRANCHES), (
+        f"{workflow_name}: metadata.if gates {sorted(gated_branches)!r} "
+        f"but VERSION_BUMP_BRANCHES is {sorted(VERSION_BUMP_BRANCHES)!r}"
     )
 
 

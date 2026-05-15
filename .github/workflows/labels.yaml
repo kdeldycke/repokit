@@ -51,6 +51,12 @@ jobs:
 
   metadata:
     name: 🧬 Project metadata
+    # Skipping this job propagates to every `needs: metadata` job below.
+    # The branch list must stay in sync with repomatic.binary.VERSION_BUMP_BRANCHES:
+    # tests/test_workflows.py::test_metadata_gate_skips_version_bump_branches enforces it.
+    if: >
+      !contains(fromJSON('["major-version-increment","minor-version-increment","prepare-release"]'),
+      github.head_ref)
     runs-on: ubuntu-slim
     outputs:
       metadata: ${{ steps.metadata.outputs.metadata }}
@@ -58,13 +64,11 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: astral-sh/setup-uv@6ee6290f1cbc4156c0bdd66691b2c144ef8df19a # v7.4.0
       - name: Run repomatic metadata
-        # is_version_bump_branch lets every labeller job below skip uniformly
-        # for prepare-release and *-version-increment PRs.
         id: metadata
         run: >
           uvx --no-progress --from . repomatic metadata
           --format github-json --output "$GITHUB_OUTPUT"
-          is_bot is_version_bump_branch
+          is_bot
 
   file-labeller:
     name: 📁 File-based PR labeller
@@ -72,7 +76,6 @@ jobs:
       - metadata
     if: >
       github.event_name == 'pull_request'
-      && !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
       && (! fromJSON(needs.metadata.outputs.metadata).is_bot)
     runs-on: ubuntu-slim
     permissions:
@@ -94,7 +97,6 @@ jobs:
       - metadata
     if: >
       (github.event_name == 'pull_request' || github.event_name == 'issues')
-      && !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
       && (! fromJSON(needs.metadata.outputs.metadata).is_bot)
     runs-on: ubuntu-slim
     permissions:
@@ -119,7 +121,6 @@ jobs:
       - metadata
     if: >
       (github.event_name == 'pull_request' || github.event_name == 'issues')
-      && !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
       && (! fromJSON(needs.metadata.outputs.metadata).is_bot)
     runs-on: ubuntu-slim
     permissions:

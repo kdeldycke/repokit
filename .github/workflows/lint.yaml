@@ -31,6 +31,14 @@ jobs:
 
   metadata:
     name: 🧬 Project metadata
+    # Skipping this job propagates to every `needs: metadata` job below,
+    # so version-bump PRs (including downstream workflow_call invocations
+    # that bypass branches-ignore filters) cost zero runner minutes here.
+    # The branch list must stay in sync with repomatic.binary.VERSION_BUMP_BRANCHES:
+    # tests/test_workflows.py::test_metadata_gate_skips_version_bump_branches enforces it.
+    if: >
+      !contains(fromJSON('["major-version-increment","minor-version-increment","prepare-release"]'),
+      github.head_ref)
     runs-on: ubuntu-slim
     outputs:
       metadata: ${{ steps.metadata.outputs.metadata }}
@@ -38,21 +46,17 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: astral-sh/setup-uv@6ee6290f1cbc4156c0bdd66691b2c144ef8df19a # v7.4.0
       - name: Run repomatic metadata
-        # is_version_bump_branch lets every dependent job below skip uniformly
-        # for prepare-release and *-version-increment PRs (including downstream
-        # workflow_call invocations that bypass branches-ignore filters).
         id: metadata
         run: >
           uvx --no-progress --from . repomatic metadata
           --format github-json --output "$GITHUB_OUTPUT"
-          is_bot is_version_bump_branch python_files yaml_files
-          workflow_files zsh_files is_python_project
+          is_bot python_files yaml_files workflow_files zsh_files
+          is_python_project
 
   lint-repo:
     name: 🏠 Lint repo
     needs:
       - metadata
-    if: ${{ !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch }}
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -68,11 +72,9 @@ jobs:
     name: 🛡️ Lint types
     needs:
       - metadata
-    # Skip on version-bump PRs (frozen URLs, no code change) and when no
-    # Python files are present.
-    if: >
-      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
-      && fromJSON(needs.metadata.outputs.metadata).python_files
+    # Skip when no Python files are present. Version-bump PRs are already
+    # filtered upstream by the metadata job's `if:` gate.
+    if: fromJSON(needs.metadata.outputs.metadata).python_files
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -92,11 +94,9 @@ jobs:
     name: 📄 Lint YAML
     needs:
       - metadata
-    # Skip on version-bump PRs (frozen URLs, no code change) and dependency
-    # update PRs (do not heavily alter YAML files).
+    # Skip dependency update PRs (do not heavily alter YAML files).
     if: >
-      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
-      && (! fromJSON(needs.metadata.outputs.metadata).is_bot)
+      (! fromJSON(needs.metadata.outputs.metadata).is_bot)
       && fromJSON(needs.metadata.outputs.metadata).yaml_files
     runs-on: ubuntu-slim
     steps:
@@ -109,10 +109,9 @@ jobs:
     name: 🐚 Lint Zsh
     needs:
       - metadata
-    # Skip on version-bump PRs and bot PRs (neither alters Zsh files).
+    # Skip bot PRs (do not alter Zsh files).
     if: >
-      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
-      && (! fromJSON(needs.metadata.outputs.metadata).is_bot)
+      (! fromJSON(needs.metadata.outputs.metadata).is_bot)
       && fromJSON(needs.metadata.outputs.metadata).zsh_files
     runs-on: ubuntu-slim
     steps:
@@ -130,11 +129,9 @@ jobs:
     name: ⚡ Lint GitHub Actions
     needs:
       - metadata
-    # Skip on version-bump PRs and dependency update PRs (neither heavily
-    # alters GitHub Actions).
+    # Skip dependency update PRs (do not heavily alter GitHub Actions).
     if: >
-      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
-      && (! fromJSON(needs.metadata.outputs.metadata).is_bot)
+      (! fromJSON(needs.metadata.outputs.metadata).is_bot)
       && fromJSON(needs.metadata.outputs.metadata).workflow_files
     runs-on: ubuntu-slim
     steps:
@@ -161,11 +158,9 @@ jobs:
     name: 🔒 Lint workflow security
     needs:
       - metadata
-    # Skip on version-bump PRs and dependency update PRs (neither heavily
-    # alters GitHub Actions).
+    # Skip dependency update PRs (do not heavily alter GitHub Actions).
     if: >
-      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
-      && (! fromJSON(needs.metadata.outputs.metadata).is_bot)
+      (! fromJSON(needs.metadata.outputs.metadata).is_bot)
       && fromJSON(needs.metadata.outputs.metadata).workflow_files
     runs-on: ubuntu-slim
     steps:
@@ -178,11 +173,7 @@ jobs:
     name: 🌟 Lint awesome
     needs:
       - metadata
-    # Skip on version-bump PRs to align with the rest of the workflow, even
-    # though "awesome-*" repositories don't trigger the release workflow.
-    if: >
-      startsWith(github.event.repository.name, 'awesome-')
-      && !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
+    if: startsWith(github.event.repository.name, 'awesome-')
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -200,10 +191,8 @@ jobs:
     name: 🔐 Lint secrets
     needs:
       - metadata
-    # Skip on version-bump PRs and dependency update PRs.
-    if: >
-      !fromJSON(needs.metadata.outputs.metadata).is_version_bump_branch
-      && ! fromJSON(needs.metadata.outputs.metadata).is_bot
+    # Skip dependency update PRs.
+    if: ${{ ! fromJSON(needs.metadata.outputs.metadata).is_bot }}
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
