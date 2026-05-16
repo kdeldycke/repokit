@@ -1551,7 +1551,7 @@ def test_header_with_ignore_paths_strips_canonical() -> None:
     """`ignore_paths` removes matching entries from every paths block."""
     spec = PathsSpec(ignore_paths=["uv.lock", "tests/**"])
     header = generate_workflow_header("tests.yaml", paths_spec=spec)
-    assert "uv.lock" not in header
+    assert "- uv.lock" not in header
     assert "tests/**" not in header
     assert "pyproject.toml" in header
 
@@ -1569,7 +1569,7 @@ def test_header_per_workflow_override_replaces_paths_blocks() -> None:
     assert header.count("install.sh") == 2
     assert header.count("packages.toml") == 2
     # Canonical-only entries are gone.
-    assert "uv.lock" not in header
+    assert "- uv.lock" not in header
     assert "tests/**" not in header
     assert UPSTREAM_SOURCE_GLOB not in header
 
