@@ -89,7 +89,7 @@ jobs:
           GH_TOKEN: ${{ secrets.REPOMATIC_PAT || github.token }}
         run: uvx --no-progress --from . repomatic check-renovate
 
-      - uses: renovatebot/github-action@83ec54fee49ab67d9cd201084c1ff325b4b462e4 # v46.1.10
+      - uses: renovatebot/github-action@693b9ef15eec82123529a37c782242f091365961 # v46.1.14
         with:
           # Custom PAT required for Renovate to function fully.
           # See readme.md for full list of required permissions.
