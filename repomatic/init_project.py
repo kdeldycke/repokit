@@ -415,7 +415,7 @@ def init_config(config_type: str, pyproject_path: Path | None = None) -> str | N
     if "tool" not in doc:
         doc.add("tool", tomlkit.table())
 
-    doc["tool"][tool_name] = new_section  # type: ignore[index]
+    doc["tool"][tool_name] = new_section
 
     return tomlkit.dumps(doc)
 
