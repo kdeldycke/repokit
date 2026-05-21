@@ -27,6 +27,11 @@ Always update documentation when making changes:
 - **`changelog.md`**: Add a bullet point describing **what** changed (new features, bug fixes, behavior changes), not **why**. Keep entries concise and actionable. Justifications and rationale belong in documentation (`docs/`, code comments), not in the changelog.
 - **`docs/`**: When this repo has a `docs/` tree, update the relevant page when adding or modifying workflow jobs, CLI commands, or configuration options.
 
+**Do not mention in the changelog:**
+
+- **Test updates that follow mechanically from a behavior change.** Adjusting fixtures, snapshots, parametrize cases, or assertions to match a bumped dependency or a renamed symbol is implicit in the underlying change: don't list it. Only mention test work when it is *structural*: a new test harness, a new fixture mechanism, switching from `unittest.TestCase` to functions, introducing parametrization across a whole module, etc.
+- **Temporary workarounds with a short shelf life.** `tool.uv.exclude-newer-package` cooldown bypasses, pinned dev versions to dodge a transient upstream bug, `xfail` markers waiting for a fix, commented-out lines: these typically get reverted within days and only add noise to the permanent record. Drop them. If a workaround is load-bearing for more than a release cycle, that's the moment to add an entry.
+
 ### Documentation sync (upstream maintainers)
 
 ```{note}
