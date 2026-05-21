@@ -133,9 +133,8 @@ def test_get_github_releases_raises_on_url_error(monkeypatch):
     with patch(
         "repomatic.github.releases.urlopen",
         side_effect=URLError("502 Bad Gateway"),
-    ):
-        with pytest.raises(GitHubReleasesUnavailable) as exc_info:
-            get_github_releases("https://github.com/user/repo")
+    ), pytest.raises(GitHubReleasesUnavailable) as exc_info:
+        get_github_releases("https://github.com/user/repo")
     assert "user/repo" in str(exc_info.value)
 
 
@@ -159,9 +158,8 @@ def test_get_github_releases_raises_on_partial_pagination(monkeypatch):
         fail_after_first[0] = True
         return next(responses)
 
-    with patch("repomatic.github.releases.urlopen", side_effect=fake_urlopen):
-        with pytest.raises(GitHubReleasesUnavailable) as exc_info:
-            get_github_releases("https://github.com/user/repo")
+    with patch("repomatic.github.releases.urlopen", side_effect=fake_urlopen), pytest.raises(GitHubReleasesUnavailable) as exc_info:
+        get_github_releases("https://github.com/user/repo")
     assert "page 2" in str(exc_info.value)
 
 
@@ -171,9 +169,8 @@ def test_get_github_releases_raises_on_timeout(monkeypatch):
     with patch(
         "repomatic.github.releases.urlopen",
         side_effect=TimeoutError("read timed out"),
-    ):
-        with pytest.raises(GitHubReleasesUnavailable):
-            get_github_releases("https://github.com/user/repo")
+    ), pytest.raises(GitHubReleasesUnavailable):
+        get_github_releases("https://github.com/user/repo")
 
 
 def test_get_github_releases_raises_on_invalid_json(monkeypatch):
@@ -182,9 +179,8 @@ def test_get_github_releases_raises_on_invalid_json(monkeypatch):
     with patch(
         "repomatic.github.releases.urlopen",
         return_value=_FakeResponse(b"not json"),
-    ):
-        with pytest.raises(GitHubReleasesUnavailable):
-            get_github_releases("https://github.com/user/repo")
+    ), pytest.raises(GitHubReleasesUnavailable):
+        get_github_releases("https://github.com/user/repo")
 
 
 def test_get_github_releases_malformed_url_returns_empty():
