@@ -87,10 +87,12 @@ WORKFLOWS_WITH_CONCURRENCY = tuple(
     )
 )
 
-# PR-triggered workflows that must filter out automated version-bump
-# branches via `pull_request.branches-ignore`. These workflows are heavy
-# enough that running them on bot-authored drafts whose code is identical
-# to `main` is pure waste.
+# PR-triggered workflows that must skip automated version-bump PRs. These
+# workflows are heavy enough that running them on bot-authored drafts whose
+# code is identical to `main` is pure waste. Each lists VERSION_BUMP_BRANCHES
+# under `pull_request.branches-ignore` (documentation of intent, since the
+# trigger-level filter matches the PR's *base* branch, not its head) and
+# gates its `metadata` job on `github.head_ref` (the actual skip mechanism).
 WORKFLOWS_IGNORING_VERSION_BUMPS = frozenset((
     "labels.yaml",
     "lint.yaml",
@@ -98,9 +100,12 @@ WORKFLOWS_IGNORING_VERSION_BUMPS = frozenset((
 ))
 
 # Workflows whose `metadata` pre-job gates downstream jobs by skipping
-# itself on version-bump head refs. `tests.yaml` is exempt: it does not
-# accept `workflow_call`, so branches-ignore on its `pull_request` trigger
-# is the only entry point and the metadata job can always run.
+# itself on every VERSION_BUMP_COMMIT_PREFIXES member (including
+# `[changelog] Post-release bump `). `tests.yaml` is *not* in this set
+# because it must still test the post-release-bump push: that push also
+# carries the release commit, and is the only post-merge test of the
+# release-frozen tree. See `test_tests_metadata_gate_skips_manual_bumps`
+# for tests.yaml's narrower gating.
 WORKFLOWS_WITH_METADATA_GATE = frozenset((
     "labels.yaml",
     "lint.yaml",
@@ -317,11 +322,16 @@ def test_version_bump_branches_ignored(workflow_name: str) -> None:
     )
 
 
-@pytest.mark.parametrize("workflow_name", sorted(WORKFLOWS_WITH_METADATA_GATE))
+@pytest.mark.parametrize("workflow_name", sorted(WORKFLOWS_IGNORING_VERSION_BUMPS))
 def test_metadata_gate_skips_version_bump_branches(workflow_name: str) -> None:
     """The `metadata` job's `if:` expression must encode the same set of
     branch names as VERSION_BUMP_BRANCHES via a `contains(fromJSON(...))`
     check on `github.head_ref`.
+
+    All PR-triggered workflows that ignore version-bump PRs need this gate
+    because `pull_request.branches-ignore` only filters the PR's *base*
+    branch (always `main`), so the head-ref check is the only mechanism
+    that actually skips these PRs.
     """
     jobs = load_workflow(workflow_name).get("jobs", {})
     if_expr = jobs.get("metadata", {}).get("if", "")

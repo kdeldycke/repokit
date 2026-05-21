@@ -13,10 +13,14 @@ name: 🔬 Tests
       - .github/workflows/tests.yaml
   pull_request:
     branches-ignore:
-      # Skip on automated version-bump PRs: their content is identical to main
-      # (only version strings and uv.lock change), so the test matrix would burn
-      # CI minutes for no signal. Lockfile-induced regressions are independently
-      # caught by sync-uv-lock autofix PRs against main.
+      # `branches-ignore` for `pull_request` matches the PR's *base* branch
+      # (always `main` here), not its head branch — so this list does not
+      # actually exclude version-bump PRs. The real skip is in the metadata
+      # job's `if:` gate below, which checks `github.head_ref`. Kept as
+      # documentation of intent and as a hedge in case any PR ever targets
+      # one of these branches as its base. See
+      # https://github.com/actions/runner/issues/1591 for the open feature
+      # request to filter on head branch at the trigger level.
       - major-version-increment
       - minor-version-increment
       - prepare-release
@@ -41,15 +45,23 @@ jobs:
   metadata:
     name: 🧬 Project metadata
     # Skipping this job propagates to every `needs: metadata` job below.
-    # The `[changelog] Post-release bump ` prefix is intentionally *not*
-    # in this list: that push also carries the release commit, and the
-    # post-release-bump head commit is our only post-merge test of the
-    # release-frozen tree (the `prepare-release` PR is filtered out at
-    # the trigger level by `branches-ignore`). The branch list mirrors
-    # MANUAL_VERSION_BUMP_COMMIT_PREFIXES and is pinned by
+    # The `pull_request.branches-ignore` filter above matches the PR's base
+    # branch (always `main`), not its head branch (see
+    # https://github.com/actions/runner/issues/1591), so the version-bump
+    # PRs slip through it and must be filtered here via `github.head_ref`.
+    # The branch list mirrors `repomatic.binary.VERSION_BUMP_BRANCHES` and
+    # is pinned by tests/test_workflows.py.
+    #
+    # The `[changelog] Post-release bump ` commit prefix is intentionally
+    # *not* in this list: that push also carries the release commit, and
+    # the post-release-bump head commit is our only post-merge test of the
+    # release-frozen tree. The commit-prefix list mirrors
+    # `MANUAL_VERSION_BUMP_COMMIT_PREFIXES` and is pinned by
     # tests/test_workflows.py::test_tests_metadata_gate_skips_manual_bumps.
     if: >
-      !startsWith(github.event.head_commit.message || '', 'Bump major version to ')
+      !contains(fromJSON('["major-version-increment","minor-version-increment","prepare-release"]'),
+      github.head_ref)
+      && !startsWith(github.event.head_commit.message || '', 'Bump major version to ')
       && !startsWith(github.event.head_commit.message || '', 'Bump minor version to ')
     runs-on: ubuntu-slim
     outputs:
@@ -129,7 +141,7 @@ jobs:
         # Skip on sync-repomatic PRs (data-only changes with no coverable
         # lines) and fork PRs (secrets are not available). The version-bump
         # PR family (prepare-release, *-version-increment) is already filtered
-        # at the workflow trigger level via pull_request.branches-ignore.
+        # by the metadata job's `github.head_ref` gate above.
         if: >
           github.head_ref != 'sync-repomatic'
           && env.CODECOV_TOKEN != ''
