@@ -49,6 +49,14 @@ def _cleanup_git_config_lock():
     re-enter the lock path during the next test's ``Git(".")`` init, leaving
     the lock file on disk when ``rmfile()`` races.  Deleting it here is safe:
     no test holds the lock between test boundaries.
+
+    On Windows, a parallel xdist worker may hold the lock at the moment this
+    fixture runs (the ``xdist_group("git")`` guard only serializes tests that
+    actually use pydriller, not all workers).  A ``PermissionError`` here means
+    the file is actively held — not stale — so silently skip the deletion.
     """
-    Path(".git/config.lock").unlink(missing_ok=True)
+    try:
+        Path(".git/config.lock").unlink(missing_ok=True)
+    except PermissionError:
+        pass
     yield
