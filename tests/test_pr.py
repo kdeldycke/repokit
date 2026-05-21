@@ -36,7 +36,9 @@ def test_list_open_prs_by_branch_filters_arguments():
     args = mock_gh.call_args.args[0]
     assert args[:2] == ["pr", "list"]
     assert "--state" in args and args[args.index("--state") + 1] == "open"
-    assert "--head" in args and args[args.index("--head") + 1] == "minor-version-increment"
+    assert (
+        "--head" in args and args[args.index("--head") + 1] == "minor-version-increment"
+    )
 
 
 def test_list_open_prs_by_branch_empty():
