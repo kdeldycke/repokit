@@ -1,5 +1,10 @@
 # Changelog
 
+## [`6.19.1.dev0` (unreleased)](https://github.com/kdeldycke/repomatic/compare/v6.19.0...main)
+
+> [!WARNING]
+> This version is **not released yet** and is under active development.
+
 ## [`6.19.0` (2026-05-21)](https://github.com/kdeldycke/repomatic/compare/v6.18.4...v6.19.0)
 
 - Fix a flaky `.git/config.lock` conflict on `ubuntu-24.04-arm / py3.14t`: `test_skip_binary_build_property_is_bool` in `test_binary.py` accesses `Metadata.skip_binary_build` which, in a CI push event, triggers `Metadata.git` → `pydriller.Git(".")` on a separate xdist worker. The cross-worker lock race caused an `OSError` when the git-group worker ran `test_is_version_bump_allowed_current_repo` simultaneously. Adding `@pytest.mark.xdist_group("git")` to that test serializes it onto the same worker as the other git-touching tests.
