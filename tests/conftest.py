@@ -51,9 +51,13 @@ def _cleanup_git_config_lock():
     no test holds the lock between test boundaries.
 
     On Windows, a parallel xdist worker may hold the lock at the moment this
-    fixture runs (the ``xdist_group("git")`` guard only serializes tests that
-    actually use pydriller, not all workers).  A ``PermissionError`` here means
-    the file is actively held — not stale — so silently skip the deletion.
+    fixture runs.  A ``PermissionError`` here means the file is actively held
+    — not stale — so silently skip the deletion.
+
+    Any test that calls ``pydriller.Git(".")`` directly or indirectly (via
+    ``Metadata.git``, ``Metadata.skip_binary_build``, etc.) must carry
+    ``@pytest.mark.xdist_group("git")`` so it runs on the same worker as the
+    git-group tests and avoids cross-worker lock conflicts.
     """
     try:
         Path(".git/config.lock").unlink(missing_ok=True)
