@@ -327,8 +327,6 @@ from .binary import (
     MANUAL_VERSION_BUMP_COMMIT_PREFIXES,
     NUITKA_BUILD_TARGETS,
     SKIP_BINARY_BUILD_BRANCHES,
-    VERSION_BUMP_BRANCHES,
-    VERSION_BUMP_COMMIT_PREFIXES,
 )
 from .changelog import (
     GITHUB_RELEASE_URL,
@@ -389,19 +387,6 @@ class Dialect(StrEnum):
 
 _METADATA_KEY_DESCRIPTIONS: Final[dict[str, str]] = {
     "is_bot": "Workflow was triggered by a bot or automated process.",
-    "is_version_bump_branch": (
-        "PR head branch is one of the automated version-bump branches "
-        "(`prepare-release`, `major-version-increment`, "
-        "`minor-version-increment`)."
-    ),
-    "is_version_bump_commit": (
-        "Push event's head commit message starts with one of the "
-        "automated version-bump prefixes."
-    ),
-    "is_version_bump_event": (
-        "Workflow run is either a version-bump PR or a push carrying a "
-        "version-bump head commit."
-    ),
     "skip_binary_build": "Binary builds should be skipped for this event.",
     "yaml_changed": "Current event's commit range touches at least one YAML file.",
     "zsh_changed": "Current event's commit range touches at least one Zsh file.",
@@ -1137,18 +1122,6 @@ class Metadata:
         return BINARY_AFFECTING_PATHS + tuple(sorted(source_dirs))
 
     @cached_property
-    def is_version_bump_branch(self) -> bool:
-        """Returns `True` if the PR head branch is one of the
-        {data}`~repomatic.binary.VERSION_BUMP_BRANCHES` members.
-
-        Used by workflow YAML conditions to gate jobs that should not run on
-        automated version-bump PRs whose working tree is identical to `main`
-        except for version strings and `uv.lock`. Always `False` for push,
-        schedule, and `workflow_dispatch` events (which carry no head branch).
-        """
-        return bool(self.head_branch and self.head_branch in VERSION_BUMP_BRANCHES)
-
-    @cached_property
     def head_commit_message(self) -> str:
         """Returns `github.event.head_commit.message` from the event payload.
 
@@ -1157,32 +1130,6 @@ class Metadata:
         """
         head_commit = self.github_event.get("head_commit") or {}
         return head_commit.get("message") or ""
-
-    @cached_property
-    def is_version_bump_commit(self) -> bool:
-        """Returns `True` if the head commit message matches any
-        {data}`~repomatic.binary.VERSION_BUMP_COMMIT_PREFIXES` member.
-
-        Detects the post-merge side of a version-bump PR: the commit
-        landing on `main` from `bump-version` or `prepare-release` PR
-        merges. Always `False` for events without a head commit.
-        """
-        msg = self.head_commit_message
-        return bool(msg) and any(
-            msg.startswith(prefix) for prefix in VERSION_BUMP_COMMIT_PREFIXES
-        )
-
-    @cached_property
-    def is_version_bump_event(self) -> bool:
-        """Returns `True` when *either* the head branch or the head commit
-        identifies this run as a version-bump operation.
-
-        Composite of {attr}`is_version_bump_branch` (PR side) and
-        {attr}`is_version_bump_commit` (push side). Single field that
-        downstream consumers can read without knowing which event type
-        the workflow was triggered from.
-        """
-        return self.is_version_bump_branch or self.is_version_bump_commit
 
     @cached_property
     def yaml_changed(self) -> bool:
@@ -2446,9 +2393,6 @@ class Metadata:
         # the pydriller ``Repository(...)`` walk it pulls in.
         factories: dict[str, Callable[[], Any]] = {
             "is_bot": lambda: self.is_bot,
-            "is_version_bump_branch": lambda: self.is_version_bump_branch,
-            "is_version_bump_commit": lambda: self.is_version_bump_commit,
-            "is_version_bump_event": lambda: self.is_version_bump_event,
             "skip_binary_build": lambda: self.skip_binary_build,
             "yaml_changed": lambda: self.yaml_changed,
             "zsh_changed": lambda: self.zsh_changed,
