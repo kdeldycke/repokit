@@ -3191,6 +3191,15 @@ def lint_changelog(
         - Inserts placeholder sections for orphaned versions.
 
     \b
+    Exit codes:
+        0  All dates match, or --fix corrected the file.
+        1  Date mismatch or orphan detected without --fix.
+        2  Sanity gate refused to rewrite: upstream lookup (PyPI or
+           GitHub Releases) looks unhealthy and the existing changelog
+           has substantial coverage that would be silently stripped.
+           Re-run when the API is reachable.
+
+    \b
     Examples:
         # Check the default changelog.md (auto-detects PyPI package)
         repomatic lint-changelog

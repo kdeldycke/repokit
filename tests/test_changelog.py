@@ -27,7 +27,7 @@ from repomatic.changelog import (
     build_unavailable_admonition,
     lint_changelog_dates,
 )
-from repomatic.github.releases import GitHubRelease
+from repomatic.github.releases import GitHubRelease, GitHubReleasesUnavailable
 from repomatic.pypi import PyPIRelease
 
 SAMPLE_CHANGELOG = dedent(
@@ -1407,3 +1407,200 @@ def test_lint_pypi_history_current_wins(tmp_path, monkeypatch):
     # Current package wins: 1.0.0 should link to new-pkg, not old-pkg.
     assert "pypi.org/project/new-pkg/1.0.0/" in content
     assert "pypi.org/project/old-pkg/1.0.0/" not in content
+
+
+# ---------------------------------------------------------------------------
+# Sanity gate: refuse to rewrite when upstream data looks empty/broken.
+# ---------------------------------------------------------------------------
+
+
+CHANGELOG_WITH_ADMONITIONS = dedent(
+    """\
+    # Changelog
+
+    ## [`1.3.0` (2026-03-01)](https://github.com/user/repo/compare/v1.2.0...v1.3.0)
+
+    > [!NOTE]
+    > `1.3.0` is available on [🐍 PyPI](https://pypi.org/project/my-package/1.3.0/) and [🐙 GitHub](https://github.com/user/repo/releases/tag/v1.3.0).
+
+    - Third release.
+
+    ## [`1.2.0` (2026-02-01)](https://github.com/user/repo/compare/v1.1.0...v1.2.0)
+
+    > [!NOTE]
+    > `1.2.0` is available on [🐍 PyPI](https://pypi.org/project/my-package/1.2.0/) and [🐙 GitHub](https://github.com/user/repo/releases/tag/v1.2.0).
+
+    - Second release.
+
+    ## [`1.1.0` (2026-01-01)](https://github.com/user/repo/compare/v1.0.0...v1.1.0)
+
+    > [!NOTE]
+    > `1.1.0` is available on [🐍 PyPI](https://pypi.org/project/my-package/1.1.0/) and [🐙 GitHub](https://github.com/user/repo/releases/tag/v1.1.0).
+
+    - Minor release.
+
+    ## [`1.0.0` (2025-12-01)](https://github.com/user/repo/compare/v0.9.0...v1.0.0)
+
+    > [!NOTE]
+    > `1.0.0` is the *first version* available on [🐍 PyPI](https://pypi.org/project/my-package/1.0.0/) and [🐙 GitHub](https://github.com/user/repo/releases/tag/v1.0.0).
+
+    - Initial release.
+    """
+)
+"""Changelog with four releases, each carrying both PyPI and GitHub links.
+
+Used by sanity-gate tests to assert that a destructive rewrite is refused
+when an upstream lookup fails or returns no data.
+"""
+
+
+def test_lint_fix_refuses_rewrite_when_github_lookup_raises(tmp_path, monkeypatch):
+    """The sanity gate refuses to strip every GitHub link when the API errors.
+
+    This replays the kdeldycke/click-extra#1702 scenario: GitHub returns
+    a transient error, the legacy code treated the empty dict as "no
+    GitHub releases," and the rewrite stripped every `🐙 GitHub` link
+    from the file. The gate exits non-zero before any write.
+    """
+    path = tmp_path / "changelog.md"
+    path.write_text(CHANGELOG_WITH_ADMONITIONS, encoding="UTF-8")
+    original = path.read_text(encoding="UTF-8")
+
+    monkeypatch.setattr(
+        "repomatic.changelog.get_pypi_release_dates",
+        _pypi_mock({
+            "1.3.0": ("2026-03-01", False),
+            "1.2.0": ("2026-02-01", False),
+            "1.1.0": ("2026-01-01", False),
+            "1.0.0": ("2025-12-01", False),
+        }),
+    )
+    monkeypatch.setattr(
+        "repomatic.changelog.get_project_name",
+        lambda: "my-package",
+    )
+
+    def _raise(_repo_url):
+        raise GitHubReleasesUnavailable("simulated 502 Bad Gateway")
+
+    monkeypatch.setattr("repomatic.changelog.get_github_releases", _raise)
+    _patch_tags(monkeypatch)
+
+    assert lint_changelog_dates(path, fix=True) == 2
+    assert path.read_text(encoding="UTF-8") == original
+
+
+def test_lint_fix_refuses_rewrite_when_pypi_empty_with_coverage(tmp_path, monkeypatch):
+    """The sanity gate refuses when PyPI returns nothing but coverage exists.
+
+    PyPI's client conflates `404` with all transient failures, so an
+    empty result above the coverage threshold is treated as a failure
+    fingerprint rather than a genuine "package no longer published"
+    transition.
+    """
+    path = tmp_path / "changelog.md"
+    path.write_text(CHANGELOG_WITH_ADMONITIONS, encoding="UTF-8")
+    original = path.read_text(encoding="UTF-8")
+
+    monkeypatch.setattr(
+        "repomatic.changelog.get_pypi_release_dates",
+        lambda pkg: {},
+    )
+    monkeypatch.setattr(
+        "repomatic.changelog.get_project_name",
+        lambda: "my-package",
+    )
+    monkeypatch.setattr(
+        "repomatic.changelog.get_github_releases",
+        _github_mock(["1.3.0", "1.2.0", "1.1.0", "1.0.0"]),
+    )
+    _patch_tags(monkeypatch)
+
+    assert lint_changelog_dates(path, fix=True) == 2
+    assert path.read_text(encoding="UTF-8") == original
+
+
+def test_lint_fix_proceeds_when_github_fails_but_no_existing_links(
+    tmp_path, monkeypatch
+):
+    """No existing GitHub links → GitHub failure is not destructive, so proceed.
+
+    This is the legitimate "new repo, GitHub API flaky" case: there's
+    nothing in the changelog to lose, so the rewrite is a no-op on the
+    GitHub side and can safely run.
+    """
+    path = tmp_path / "changelog.md"
+    path.write_text(MULTI_RELEASE_CHANGELOG, encoding="UTF-8")
+
+    monkeypatch.setattr(
+        "repomatic.changelog.get_pypi_release_dates",
+        _pypi_mock({
+            "1.1.0": ("2026-02-10", False),
+            "1.0.0": ("2025-12-01", False),
+        }),
+    )
+    monkeypatch.setattr(
+        "repomatic.changelog.get_project_name",
+        lambda: "my-package",
+    )
+
+    def _raise(_repo_url):
+        raise GitHubReleasesUnavailable("simulated 502 Bad Gateway")
+
+    monkeypatch.setattr("repomatic.changelog.get_github_releases", _raise)
+    _patch_tags(monkeypatch)
+
+    assert lint_changelog_dates(path, fix=True) == 0
+    # Rewrite still happened on the PyPI side.
+    assert "[🐍 PyPI](https://pypi.org/project/my-package/1.1.0/)" in path.read_text(
+        encoding="UTF-8"
+    )
+
+
+def test_lint_fix_proceeds_when_pypi_empty_below_threshold(tmp_path, monkeypatch):
+    """Empty PyPI fetch with < threshold existing PyPI links → proceed.
+
+    A project that's never been on PyPI (or just migrated off) has at
+    most a couple of PyPI links in its history. The threshold lets that
+    legitimate case through while still catching the transient-failure
+    fingerprint.
+    """
+    # Only one existing PyPI link, well below EMPTY_PYPI_SANITY_THRESHOLD.
+    content = dedent(
+        """\
+        # Changelog
+
+        ## [1.1.0 (2026-02-10)](https://github.com/user/repo/compare/v1.0.0...v1.1.0)
+
+        > [!NOTE]
+        > `1.1.0` is available on [🐍 PyPI](https://pypi.org/project/my-package/1.1.0/).
+
+        - Second release.
+
+        ## [1.0.0 (2025-12-01)](https://github.com/user/repo/compare/v0.9.0...v1.0.0)
+
+        - Initial release.
+        """
+    )
+    path = tmp_path / "changelog.md"
+    path.write_text(content, encoding="UTF-8")
+
+    monkeypatch.setattr(
+        "repomatic.changelog.get_pypi_release_dates",
+        lambda pkg: {},
+    )
+    monkeypatch.setattr(
+        "repomatic.changelog.get_project_name",
+        lambda: "my-package",
+    )
+    monkeypatch.setattr(
+        "repomatic.changelog.get_github_releases",
+        _github_mock([]),
+    )
+    _patch_tags(
+        monkeypatch,
+        {"v1.1.0": "2026-02-10", "v1.0.0": "2025-12-01"},
+    )
+
+    # Below threshold: gate doesn't fire; falls back to git tag mode.
+    assert lint_changelog_dates(path, fix=True) == 0

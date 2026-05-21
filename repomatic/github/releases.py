@@ -31,6 +31,20 @@ GITHUB_API_RELEASES_URL = "https://api.github.com/repos/{owner}/{repo}/releases"
 """GitHub API URL for fetching all releases for a repository."""
 
 
+class GitHubReleasesUnavailable(RuntimeError):
+    """Raised when the GitHub Releases API call could not complete cleanly.
+
+    Signals a transient failure (network error, timeout, JSON parse error,
+    or pagination breaking mid-stream) where the result cannot safely be
+    treated as "no releases."
+
+    Callers that drive destructive operations (rewriting the changelog,
+    deleting tags, etc.) must catch this and refuse to act, rather than
+    silently rewriting state with a corrupted or empty view of release
+    history.
+    """
+
+
 class GitHubRelease(NamedTuple):
     """Release metadata for a single version from GitHub."""
 
@@ -51,7 +65,13 @@ def get_github_releases(repo_url: str) -> dict[str, GitHubRelease]:
     :param repo_url: Repository URL (e.g.
         `https://github.com/user/repo`).
     :return: Dict mapping version strings to {class}`GitHubRelease`
-        tuples. Empty dict if the request fails.
+        tuples. Empty dict only when the repository genuinely has no
+        releases (the API returned an empty page) or when `repo_url`
+        does not parse to an `owner/repo` pair.
+    :raises GitHubReleasesUnavailable: When any page fetch fails or
+        returns unparseable JSON. An empty return value from this
+        function means "the repo has no releases"; a raised exception
+        means "we don't know."
     """
     # Parse owner/repo from the URL.
     parts = repo_url.rstrip("/").split("/")
@@ -85,8 +105,17 @@ def get_github_releases(repo_url: str) -> dict[str, GitHubRelease]:
             with urlopen(request, timeout=10) as response:
                 data = json.loads(response.read())
         except (URLError, TimeoutError, json.JSONDecodeError) as exc:
-            logging.debug(f"GitHub releases lookup failed: {exc}")
-            break
+            # A failed page fetch can corrupt the result in two ways: a
+            # total failure on page 1 returns `{}` (indistinguishable from
+            # "repo has no releases"), and a mid-pagination failure returns
+            # a silently truncated dict. Both have produced changelog PRs
+            # that stripped every GitHub link from the file. Raise so the
+            # caller cannot mistake an incomplete fetch for a clean
+            # "nothing to see here."
+            raise GitHubReleasesUnavailable(
+                f"GitHub releases lookup failed for {owner}/{repo} "
+                f"on page {page}: {exc}"
+            ) from exc
         if not data:
             break
         for release in data:

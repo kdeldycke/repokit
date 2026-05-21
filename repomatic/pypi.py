@@ -137,6 +137,24 @@ def _fetch_json(package: str) -> dict | None:
     Results are cached under the `pypi` namespace. Freshness TTL is read
     from `CacheConfig.pypi_ttl`.
 
+    ```{warning}
+    Returns `None` for every failure mode: HTTP 4xx/5xx, network error,
+    timeout, JSON parse error. Callers cannot tell "package not on PyPI"
+    apart from "transient API failure" from this signal alone. Even if
+    this helper preserved the HTTP status, a `404` from
+    `/pypi/<name>/json` is not authoritative either — Warehouse 404s
+    registered projects with no releases, and registered names can
+    appear in the `simple` / `list_packages` indexes while still 404'ing
+    on the JSON endpoint (see
+    [pypi/warehouse#1388](https://github.com/pypi/warehouse/issues/1388)
+    and
+    [pypi/warehouse#9536](https://github.com/pypi/warehouse/issues/9536)).
+    Callers that drive destructive operations on this result must add a
+    sanity check at the call site — see
+    {data}`repomatic.changelog.EMPTY_PYPI_SANITY_THRESHOLD` for an
+    example.
+    ```
+
     :param package: The PyPI package name.
     :return: Parsed JSON response, or `None` on any failure.
     """

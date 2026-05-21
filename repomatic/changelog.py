@@ -124,7 +124,11 @@ from packaging.version import Version
 
 from .git_ops import get_all_version_tags, get_tag_date
 from .github.actions import AnnotationLevel, emit_annotation
-from .github.releases import GitHubRelease, get_github_releases
+from .github.releases import (
+    GitHubRelease,
+    GitHubReleasesUnavailable,
+    get_github_releases,
+)
 from .pyproject import get_project_name
 
 CHANGELOG_HEADER = "# Changelog\n"
@@ -187,6 +191,32 @@ from .pypi import (
 
 YANKED_DEDUP_MARKER = "yanked from PyPI"
 """Dedup marker for the yanked admonition to prevent duplicate insertion."""
+
+EMPTY_PYPI_SANITY_THRESHOLD = 3
+"""Minimum number of existing PyPI links in the changelog above which an
+empty PyPI lookup is treated as a transient failure rather than a genuine
+"package has no releases" state.
+
+```{note}
+Two layers of ambiguity make this threshold necessary:
+
+1. {func}`repomatic.pypi._fetch_json` returns `None` on every failure mode
+   (HTTP 4xx/5xx, network error, timeout, JSON parse error), collapsing
+   "package not on PyPI" and "transient API failure" into the same empty
+   result.
+2. Even when the HTTP status is preserved, a `404` from
+   `/pypi/<name>/json` is not authoritative: Warehouse 404s registered
+   projects that have no published releases, and registered packages can
+   appear in the `simple` / `list_packages` indexes while still 404'ing
+   on the JSON endpoint. See
+   [pypi/warehouse#1388](https://github.com/pypi/warehouse/issues/1388)
+   and [pypi/warehouse#9536](https://github.com/pypi/warehouse/issues/9536).
+```
+
+The threshold guards against a transient failure silently stripping every
+PyPI link from the changelog. Re-runs of `lint-changelog --fix` against
+a healthy API restore the file.
+"""
 
 
 @dataclass
@@ -750,8 +780,12 @@ def lint_changelog_dates(
         projects. Releases from each former name are merged into the
         lookup table so versions published under old names are recognized.
         The current package name wins on version collisions.
-    :return: `0` if all dates match or references are missing,
-        `1` if any date mismatch or orphan is found.
+    :return: `0` if all dates match or references were corrected in-place,
+        `1` if any date mismatch or orphan is found without a fix being
+        applied, `2` if the sanity gate refused a destructive rewrite
+        because an upstream data source (GitHub Releases or PyPI) appeared
+        to be returning incomplete or empty results while the existing
+        changelog has substantial coverage on that platform.
     """
     content = changelog_path.read_text(encoding="UTF-8")
     changelog = Changelog(content)
@@ -806,8 +840,17 @@ def lint_changelog_dates(
     # Extract repository URL and fetch GitHub releases.
     repo_url = changelog.extract_repo_url()
     github_releases: dict[str, GitHubRelease] = {}
+    github_fetch_failed = False
     if repo_url:
-        github_releases = get_github_releases(repo_url)
+        try:
+            github_releases = get_github_releases(repo_url)
+        except GitHubReleasesUnavailable as exc:
+            github_fetch_failed = True
+            logging.warning(f"GitHub releases lookup failed: {exc}")
+            emit_annotation(
+                AnnotationLevel.WARNING,
+                f"GitHub releases lookup failed: {exc}",
+            )
         if github_releases:
             logging.info(f"GitHub releases: {len(github_releases)} found.")
 
@@ -912,6 +955,66 @@ def lint_changelog_dates(
             has_mismatch = True
             if fix:
                 date_corrections[version] = ref_date
+
+    # Sanity gate: refuse to rewrite admonitions when an upstream data
+    # source returned empty (or failed) while the existing changelog has
+    # substantial coverage on that platform. This protects against the
+    # `kdeldycke/click-extra#1702` failure mode, where a transient API
+    # call returned `{}` and the subsequent rewrite stripped every
+    # GitHub (or PyPI) link from the changelog without ever flagging
+    # the gap as a warning.
+    if fix:
+        existing_github_links = 0
+        existing_pypi_links = 0
+        for version, _date in releases:
+            existing_admonition = changelog.decompose_version(
+                version
+            ).availability_admonition
+            if GITHUB_LABEL in existing_admonition:
+                existing_github_links += 1
+            if PYPI_LABEL in existing_admonition:
+                existing_pypi_links += 1
+
+        # GitHub side: an explicit `GitHubReleasesUnavailable` is an
+        # unambiguous signal that the data is unreliable. Refuse to
+        # rewrite as soon as the existing changelog has any GitHub
+        # coverage, since the rewrite would silently strip it.
+        if github_fetch_failed and existing_github_links > 0:
+            msg = (
+                f"Refusing to rewrite changelog: GitHub releases lookup "
+                f"failed but {existing_github_links} existing version"
+                f" section(s) reference a GitHub release. Rewriting now "
+                f"would silently strip every GitHub link from the file. "
+                f"Re-run when the GitHub API is reachable."
+            )
+            logging.error(msg)
+            emit_annotation(AnnotationLevel.ERROR, msg)
+            return 2
+
+        # PyPI side: `pypi_data == {}` cannot distinguish "package not
+        # on PyPI" from "transient failure" — see the
+        # `EMPTY_PYPI_SANITY_THRESHOLD` docstring for the two layers of
+        # ambiguity (client-side catch-all in `_fetch_json`, plus
+        # Warehouse's own 404 semantics, pypi/warehouse#1388). Use a
+        # coverage threshold to gate: a substantial number of existing
+        # PyPI links combined with an empty fetch is the fingerprint of
+        # a transient failure rather than a genuine non-PyPI project.
+        if (
+            package
+            and not pypi_data
+            and existing_pypi_links >= EMPTY_PYPI_SANITY_THRESHOLD
+        ):
+            msg = (
+                f"Refusing to rewrite changelog: PyPI lookup for "
+                f"{package!r} returned no data but {existing_pypi_links} "
+                f"existing version section(s) reference a PyPI release. "
+                f"Likely a transient API failure. Re-run when PyPI is "
+                f"reachable, or set the threshold lower if the package "
+                f"genuinely no longer publishes to PyPI."
+            )
+            logging.error(msg)
+            emit_annotation(AnnotationLevel.ERROR, msg)
+            return 2
 
     # In fix mode, decompose each version section into elements,
     # apply date corrections, compute updated admonitions, and

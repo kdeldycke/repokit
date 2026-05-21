@@ -31,7 +31,7 @@ from pathlib import Path
 from ..changelog import Changelog
 from .gh import run_gh_command
 from .pr_body import render_template
-from .releases import get_github_releases
+from .releases import GitHubReleasesUnavailable, get_github_releases
 
 
 class SyncAction(Enum):
@@ -147,7 +147,13 @@ def sync_github_releases(
     content = changelog_path.read_text(encoding="UTF-8")
     changelog = Changelog(content)
 
-    releases = get_github_releases(repo_url)
+    try:
+        releases = get_github_releases(repo_url)
+    except GitHubReleasesUnavailable as exc:
+        # Sync is read-only relative to `changelog.md`, so skipping a run
+        # when the API is unhealthy just defers the work to the next run.
+        logging.warning(f"Skipping release-notes sync: {exc}")
+        return result
     if not releases:
         logging.warning("No GitHub releases found.")
         return result
