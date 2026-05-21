@@ -26,9 +26,12 @@ name: 🧹 Lint
       - "**/*.webp"
   pull_request:
     branches-ignore:
-      # Skip on automated version-bump PRs: their content is identical to main
-      # (only version strings and uv.lock change), so the lint matrix would burn
-      # CI minutes for no signal.
+      # This filter matches the PR's *base* branch (always `main`), not its
+      # head, so it does not actually exclude these PRs — see
+      # https://github.com/actions/runner/issues/1591. The real skips are
+      # the `github.head_ref` check in the `metadata` job's `if:` below
+      # (version-bump PRs) and the `is_bot` check in every dependent job
+      # (renovate PRs). Kept here as documentation of intent.
       - major-version-increment
       - minor-version-increment
       - prepare-release
