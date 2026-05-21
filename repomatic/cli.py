@@ -899,9 +899,7 @@ def version_check(part: str) -> None:
     echo("true" if allowed else "false")
 
 
-@repomatic.command(
-    short_help="Close a stale version-bump PR", section=_section_release
-)
+@repomatic.command(short_help="Close a stale version-bump PR", section=_section_release)
 @option(
     "--part",
     type=Choice(["minor", "major"], case_sensitive=False),
