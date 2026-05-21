@@ -93,6 +93,7 @@ from .github.dev_release import (
 )
 from .github.gh import run_gh_command
 from .github.issue import manage_issue_lifecycle
+from .github.pr import close_open_prs_on_branch
 from .github.pr_body import (
     _repo_url,
     build_pr_body,
@@ -896,6 +897,52 @@ def version_check(part: str) -> None:
     """
     allowed = is_version_bump_allowed(part)  # type: ignore[arg-type]
     echo("true" if allowed else "false")
+
+
+@repomatic.command(
+    short_help="Close a stale version-bump PR", section=_section_release
+)
+@option(
+    "--part",
+    type=Choice(["minor", "major"], case_sensitive=False),
+    required=True,
+    help="The version part whose bump PR should be reconciled.",
+)
+def close_stale_bump_pr(part: str) -> None:
+    """Close the minor/major version-increment PR when a bump is no longer allowed.
+
+    The changelog workflow's bump-version job opens a draft PR on the
+    "<part>-version-increment" branch whenever a bump is allowed. A scheduled
+    run that started before a competing push can open this PR against a main
+    branch that has already advanced past the target, leaving an orphan that
+    subsequent scheduled runs cannot refresh.
+
+    This command reconciles that state: it re-evaluates the gate against the
+    current checkout and, when the bump is no longer allowed, closes any open
+    PR on the matching branch (deleting the branch). When the bump is still
+    allowed, it leaves the PR alone so the standard bump flow can update it.
+
+    Idempotent: a no-op when no open PR exists on the target branch.
+
+    \b
+    Examples:
+        repomatic close-stale-bump-pr --part minor
+        repomatic close-stale-bump-pr --part major
+    """
+    if is_version_bump_allowed(part):  # type: ignore[arg-type]
+        logging.info(f"{part} bump still allowed, leaving any open PR untouched.")
+        return
+    branch = f"{part}-version-increment"
+    closed = close_open_prs_on_branch(
+        branch,
+        comment=(
+            f"Closing stale {part} version-bump PR: `main` already advanced "
+            f"past the target version, so this branch no longer represents a "
+            f"valid bump."
+        ),
+    )
+    if closed:
+        logging.info(f"Closed {len(closed)} stale {part} bump PR(s): {closed}")
 
 
 GITIGNORE_BASE_CATEGORIES: tuple[str, ...] = (

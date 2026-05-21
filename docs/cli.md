@@ -16,6 +16,7 @@
 | [`repomatic changelog`](#repomatic-changelog)                               | Maintain a Markdown-formatted changelog                 |
 | [`repomatic check-renovate`](#repomatic-check-renovate)                     | Check Renovate migration prerequisites                  |
 | [`repomatic clean-unmodified-configs`](#repomatic-clean-unmodified-configs) | Remove config files that match bundled defaults         |
+| [`repomatic close-stale-bump-pr`](#repomatic-close-stale-bump-pr)           | Close a stale version-bump PR                           |
 | [`repomatic convert-to-myst`](#repomatic-convert-to-myst)                   | Convert reST docstrings to MyST in Python files         |
 | [`repomatic fix-vulnerable-deps`](#repomatic-fix-vulnerable-deps)           | Upgrade packages with known vulnerabilities             |
 | [`repomatic format-images`](#repomatic-format-images)                       | Format images with lossless optimization                |
@@ -114,6 +115,12 @@ invoke(repomatic, args=['check-renovate', '--help'])
 
 ```{click:run}
 invoke(repomatic, args=['clean-unmodified-configs', '--help'])
+```
+
+## `repomatic close-stale-bump-pr`
+
+```{click:run}
+invoke(repomatic, args=['close-stale-bump-pr', '--help'])
 ```
 
 ## `repomatic convert-to-myst`
