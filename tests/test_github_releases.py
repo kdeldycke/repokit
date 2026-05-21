@@ -174,7 +174,7 @@ def test_get_github_releases_raises_on_timeout(monkeypatch):
 
 
 def test_get_github_releases_raises_on_invalid_json(monkeypatch):
-    """An unparseable response surfaces as GitHubReleasesUnavailable."""
+    """An unparsable response surfaces as GitHubReleasesUnavailable."""
     _bypass_cache(monkeypatch)
     with patch(
         "repomatic.github.releases.urlopen",

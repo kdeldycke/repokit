@@ -68,7 +68,7 @@ def get_github_releases(repo_url: str) -> dict[str, GitHubRelease]:
         releases (the API returned an empty page) or when `repo_url`
         does not parse to an `owner/repo` pair.
     :raises GitHubReleasesUnavailable: When any page fetch fails or
-        returns unparseable JSON. An empty return value from this
+        returns unparsable JSON. An empty return value from this
         function means "the repo has no releases"; a raised exception
         means "we don't know."
     """
